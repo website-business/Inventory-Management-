@@ -1,1138 +1,1024 @@
-import React, { useState, useEffect, useMemo } from 'react';
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการสต๊อกสินค้า</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    .animate-fadeIn { animation: fadeIn 0.2s ease-out; } 
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-slideInRight { animation: slideInRight 0.3s ease-out; }
+    @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="bg-gray-50 pb-10 overflow-x-hidden text-gray-800 font-sans">
 
-// URL ของ Google Sheets ที่เผยแพร่เป็น CSV
-const VEHICLE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZTa9PWUXGmxpu7YQPEug2HLzEbcl7-PG8cGqdLy5fVDoKE9BGCkDLUdKZsw3RjNCg1nVoZOul9qqO/pub?gid=0&single=true&output=csv';
-const TRANSACTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZTa9PWUXGmxpu7YQPEug2HLzEbcl7-PG8cGqdLy5fVDoKE9BGCkDLUdKZsw3RjNCg1nVoZOul9qqO/pub?gid=654756465&single=true&output=csv';
-const LIFESPAN_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZTa9PWUXGmxpu7YQPEug2HLzEbcl7-PG8cGqdLy5fVDoKE9BGCkDLUdKZsw3RjNCg1nVoZOul9qqO/pub?gid=1305872211&single=true&output=csv';
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
-// ฟังก์ชันแปลง CSV
-const parseCSV = (csvText) => {
-  const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-  if (lines.length === 0) return [];
-  
-  const parseRow = (row) => {
-    const result = [];
-    let insideQuote = false;
-    let currentValue = "";
-    for (let i = 0; i < row.length; i++) {
-      const char = row[i];
-      if (char === '"') {
-        insideQuote = !insideQuote;
-      } else if (char === ',' && !insideQuote) {
+  <!-- Offline Banner -->
+  <div id="offline-banner" class="hidden bg-red-600 text-white text-center py-1.5 text-xs font-bold w-full shadow-md z-50 relative flex items-center justify-center gap-2">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+    คุณออฟไลน์อยู่ (ข้อมูลจะถูกบันทึกไว้ในเครื่องก่อน)
+  </div>
+
+  <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+        <h1 class="text-2xl font-bold">ระบบสต๊อกสินค้า</h1>
+      </div>
+      <div id="sync-indicator" class="hidden items-center text-xs font-medium text-blue-200 animate-pulse">
+        <svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        ซิงค์ข้อมูล...
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto mt-6 px-4" id="main-content" style="display:none;">
+    <!-- Tabs Menu -->
+    <div class="flex bg-white rounded-t-lg shadow-sm overflow-x-auto mb-6 border-b" id="tabs-menu">
+      <button onclick="switchTab('receive')" id="tab-btn-receive" class="flex-1 min-w-[100px] py-4 text-center font-medium transition-colors">📥 รับเข้า</button>
+      <button onclick="switchTab('dispatch')" id="tab-btn-dispatch" class="flex-1 min-w-[100px] py-4 text-center font-medium transition-colors">📤 เบิกออก</button>
+      <button onclick="switchTab('summary')" id="tab-btn-summary" class="flex-1 min-w-[100px] py-4 text-center font-medium transition-colors">📦 ของในคลัง</button>
+      <button onclick="switchTab('shops')" id="tab-btn-shops" class="flex-1 min-w-[100px] py-4 text-center font-medium transition-colors">🏪 ร้านค้า</button>
+      <button onclick="switchTab('history')" id="tab-btn-history" class="flex-1 min-w-[100px] py-4 text-center font-medium transition-colors">🕒 ประวัติ</button>
+      <button onclick="switchTab('alerts')" id="tab-btn-alerts" class="relative flex-1 min-w-[120px] py-4 text-center font-medium transition-colors">
+        ⚠️ แจ้งเตือน
+        <span id="alert-badge" class="hidden absolute top-2 right-2 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">0</span>
+      </button>
+    </div>
+
+    <div class="bg-white p-6 rounded-b-lg shadow-md border border-gray-100 min-h-[500px]">
+      
+      <!-- TAB: รับเข้า -->
+      <div id="tab-receive" class="hidden space-y-5 animate-fadeIn max-w-2xl mx-auto">
+        <h2 class="text-xl font-bold text-gray-800 border-l-4 border-blue-500 pl-3">บันทึกรับสินค้าเข้า</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">วันที่รับสินค้า</label><input type="date" id="rec-date" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">รหัสอะไหล่ (Parts)</label>
+            <div class="flex gap-2">
+              <input type="text" list="parts-list" id="rec-parts" placeholder="รหัสอะไหล่" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" oninput="handlePartsChange('rec')" />
+              <button onclick="openScanner('rec')" class="bg-blue-100 text-blue-700 p-2.5 rounded-md hover:bg-blue-200">📷</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อสินค้า <span class="text-red-500">*</span></label>
+            <input type="text" list="products-list" id="rec-product" placeholder="พิมพ์ชื่อสินค้า" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" oninput="handleProductChange('rec')" />
+          </div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">จำนวน <span class="text-red-500">*</span></label><input type="number" min="0" step="0.01" id="rec-qty" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">รวมเป็นเงิน (บาท)</label><input type="number" min="0" step="0.01" id="rec-price" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">รับจากร้านค้า / ผู้จำหน่าย</label>
+            <input type="text" list="shops-list" id="rec-shop" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+        <button id="btn-save-rec" onclick="handleSubmit('receive')" class="w-full mt-6 text-white font-bold py-3.5 px-4 rounded-md shadow bg-blue-600 hover:bg-blue-700">บันทึกรับเข้าสต๊อก</button>
+      </div>
+
+      <!-- TAB: เบิกออก -->
+      <div id="tab-dispatch" class="hidden space-y-5 animate-fadeIn max-w-2xl mx-auto">
+        <h2 class="text-xl font-bold text-gray-800 border-l-4 border-orange-500 pl-3">บันทึกเบิกสินค้าออก</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">วันที่เบิกสินค้า</label><input type="date" id="dis-date" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" /></div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">รหัสอะไหล่ (Parts)</label>
+            <div class="flex gap-2">
+              <input type="text" list="parts-list" id="dis-parts" placeholder="พิมพ์ หรือ สแกน" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" oninput="handlePartsChange('dis')" />
+              <button onclick="openScanner('dis')" class="bg-orange-100 text-orange-700 p-2.5 rounded-md hover:bg-orange-200">📷</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">เลือกสินค้าที่จะเบิก <span class="text-red-500">*</span></label>
+            <input type="text" list="products-list" id="dis-product" placeholder="พิมพ์เพื่อค้นหา" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" oninput="handleProductChange('dis')" />
+            <p id="dis-stock-warning" class="text-xs font-bold mt-1 hidden"></p>
+          </div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">จำนวนที่เบิก <span class="text-red-500">*</span></label><input type="number" min="0" step="0.01" id="dis-qty" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" /></div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">เบิกให้รหัสรถ / หน่วยงาน</label>
+            <input type="text" list="vehicles-list" id="dis-vehicle" class="w-full p-2.5 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500" oninput="checkDispatchWarning()" />
+            <div id="dis-lifespan-warning" class="mt-2 text-sm text-red-600 bg-red-100 p-2.5 rounded border border-red-200 hidden"></div>
+          </div>
+        </div>
+        <button id="btn-save-dis" onclick="handleSubmit('dispatch')" class="w-full mt-6 text-white font-bold py-3.5 px-4 rounded-md shadow bg-orange-600 hover:bg-orange-700">บันทึกเบิกออก</button>
+      </div>
+
+      <!-- TAB: ของในคลัง -->
+      <div id="tab-summary" class="hidden space-y-4 animate-fadeIn">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+          <h2 class="text-xl font-bold text-gray-800 border-l-4 border-green-500 pl-3">รายการของในคลัง</h2>
+          <input type="text" id="summary-search" placeholder="🔍 ค้นหาชื่อสินค้า หรือ รหัสอะไหล่..." oninput="renderSummary()" class="p-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-64" />
+        </div>
+        <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-100">
+              <tr><th class="px-6 py-3.5 text-left text-xs font-bold text-gray-600 uppercase">ชื่อสินค้า (และรหัสอะไหล่)</th><th class="px-6 py-3.5 text-right text-sm font-bold text-blue-800 uppercase w-32">คงเหลือ</th></tr>
+            </thead>
+            <tbody id="summary-tbody" class="bg-white divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: ร้านค้า -->
+      <div id="tab-shops" class="hidden space-y-6 animate-fadeIn">
+        <h2 class="text-xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3 mb-2">ประวัติสั่งซื้อรายร้านค้า</h2>
+        <select id="shops-select" onchange="renderShops()" class="w-full md:w-1/2 p-2.5 border rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">-- เลือกร้านค้า --</option>
+        </select>
+        <div id="shops-table-container" class="overflow-x-auto border border-gray-200 rounded-lg mt-4 shadow-sm hidden">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-100">
+              <tr><th class="px-4 py-3 text-left text-xs font-bold text-gray-600">วันที่</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-600">สินค้า</th><th class="px-4 py-3 text-right text-xs font-bold text-gray-600">จำนวน</th><th class="px-4 py-3 text-right text-xs font-bold text-gray-600">รวมเป็นเงิน</th></tr>
+            </thead>
+            <tbody id="shops-tbody" class="bg-white divide-y divide-gray-100"></tbody>
+            <tfoot class="bg-indigo-50 border-t border-indigo-100">
+              <tr><td colspan="4" id="shops-total" class="px-4 py-3 text-right text-sm font-bold text-indigo-900"></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: ประวัติ -->
+      <div id="tab-history" class="hidden space-y-6 animate-fadeIn">
+        <h2 class="text-xl font-bold text-gray-800 border-l-4 border-purple-500 pl-3 mb-2">ประวัติการทำรายการ</h2>
+        <div class="bg-purple-50 p-4 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+          <div><label class="block text-xs font-bold text-purple-800 mb-1">ประเภท</label><select id="hist-type" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none"><option value="all">ทั้งหมด</option><option value="รับเข้า">รับเข้า</option><option value="เบิกออก">เบิกออก</option></select></div>
+          <div><label class="block text-xs font-bold text-purple-800 mb-1">อะไหล่</label><select id="hist-product" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none bg-white"><option value="">-- ทุกรายการ --</option></select></div>
+          <div><label class="block text-xs font-bold text-purple-800 mb-1">รหัสรถ</label><select id="hist-vehicle" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none"><option value="">-- รถทุกคัน --</option></select></div>
+          <div><label class="block text-xs font-bold text-purple-800 mb-1">ตั้งแต่วันที่</label><input type="date" id="hist-start" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none" /></div>
+          <div><label class="block text-xs font-bold text-purple-800 mb-1">ถึงวันที่</label><input type="date" id="hist-end" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none" /></div>
+        </div>
+        <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-100">
+              <tr><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">วันที่</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">ประเภท</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">สินค้า</th><th class="px-3 py-3 text-right text-xs font-bold text-gray-600">จำนวน</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">รหัสรถ/ร้าน</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">สถานะ</th><th class="px-3 py-3 text-center text-xs font-bold text-gray-600">จัดการ</th></tr>
+            </thead>
+            <tbody id="history-tbody" class="bg-white divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: แจ้งเตือน -->
+      <div id="tab-alerts" class="hidden space-y-8 animate-fadeIn">
+        <div>
+          <h2 class="text-xl font-bold text-orange-600 border-l-4 border-orange-500 pl-3 mb-4">แจ้งเตือนอะไหล่ใกล้หมดสต๊อก</h2>
+          <div class="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
+            <table class="min-w-full divide-y divide-orange-200">
+              <thead class="bg-orange-50">
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
+              </thead>
+              <tbody id="alerts-lowstock-tbody" class="bg-white divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-red-800 border-l-4 border-red-600 pl-3 mb-4">รายการเบิกผิดปกติ (รอตรวจสอบ)</h2>
+          <div class="overflow-x-auto border border-red-200 rounded-lg shadow-sm">
+            <table class="min-w-full divide-y divide-red-200">
+              <thead class="bg-red-50">
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-red-800">วันที่เบิก</th><th class="px-4 py-3 text-left text-xs font-bold text-red-800">รหัสรถ</th><th class="px-4 py-3 text-left text-xs font-bold text-red-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-red-800">รายละเอียด</th><th class="px-4 py-3 text-right text-xs font-bold text-red-800">จัดการ</th></tr>
+              </thead>
+              <tbody id="alerts-dispatch-tbody" class="bg-white divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Datalists สากล -->
+  <datalist id="parts-list"></datalist>
+  <datalist id="products-list"></datalist>
+  <datalist id="shops-list"></datalist>
+  <datalist id="vehicles-list"></datalist>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+    <svg class="animate-spin h-10 w-10 text-blue-600 mb-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+    <div class="text-xl font-bold text-gray-700">กำลังเชื่อมต่อฐานข้อมูล...</div>
+  </div>
+
+  <!-- --- MODALS --- -->
+
+  <!-- Edit Modal -->
+  <div id="modal-edit" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 animate-fadeIn">
+      <h3 class="text-xl font-bold text-blue-800 mb-4 border-b pb-2" id="edit-title">✏️ แก้ไขรายการ</h3>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">วันที่</label><input type="date" id="edit-date" class="w-full p-2 border rounded text-sm"/></div>
+        
+        <div id="edit-wrap-parts"></div>
+        <div id="edit-wrap-product" class="col-span-2"></div>
+        
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">จำนวน</label><input type="number" id="edit-qty" class="w-full p-2 border rounded text-sm"/></div>
+        <div id="edit-wrap-extra" class="col-span-2 grid grid-cols-2 gap-4"></div>
+      </div>
+      <div class="mt-6 flex justify-end gap-2">
+        <button onclick="closeModal('modal-edit')" class="px-4 py-2 border rounded text-gray-600 bg-gray-50 hover:bg-gray-100 font-bold">ยกเลิก</button>
+        <button id="btn-edit-save" onclick="executeEdit()" class="px-4 py-2 text-white rounded font-bold transition-colors bg-blue-600 hover:bg-blue-700">บันทึกการแก้ไข</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="modal-detail" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-fadeIn">
+      <div class="p-5 border-b flex justify-between items-start bg-gray-50 rounded-t-lg">
+        <div class="w-full" id="detail-header-normal">
+          <div class="flex items-center gap-3">
+            <h3 class="text-xl font-bold text-gray-800" id="detail-title"></h3>
+            <button onclick="openGlobalRename()" class="text-blue-500 hover:text-blue-700 text-sm bg-blue-50 px-2 py-1 rounded border border-blue-200">✏️ เปลี่ยนชื่อสินค้าทั้งหมด</button>
+          </div>
+          <p class="text-sm text-blue-600 font-semibold mt-1" id="detail-balance"></p>
+        </div>
+        <div class="w-full pr-8 hidden" id="detail-header-rename">
+          <div class="bg-blue-50 p-3 rounded border border-blue-200 mb-2">
+            <p class="text-xs font-bold text-blue-800 mb-2">เปลี่ยนชื่อสินค้าและรหัสอะไหล่ (มีผลกับประวัติที่ผ่านมาทั้งหมด)</p>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input type="text" id="rename-name" placeholder="ชื่อสินค้า" class="p-2 border rounded text-sm flex-1" />
+              <input type="text" id="rename-parts" placeholder="รหัสอะไหล่" class="p-2 border rounded text-sm w-full sm:w-1/3" />
+              <button id="btn-rename-save" onclick="executeGlobalRename()" class="text-white px-3 py-2 rounded text-sm font-bold bg-blue-600 hover:bg-blue-700">บันทึก</button>
+              <button onclick="closeGlobalRename()" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 rounded text-sm">ยกเลิก</button>
+            </div>
+          </div>
+          <p class="text-sm text-blue-600 font-semibold mt-1" id="detail-balance-2"></p>
+        </div>
+        <button onclick="closeModal('modal-detail')" class="text-gray-400 hover:text-red-500 ml-4 text-xl">❌</button>
+      </div>
+
+      <div class="p-4 border-b bg-yellow-50 flex flex-col sm:flex-row items-end gap-3">
+        <div class="flex-1 w-full"><label class="block text-sm font-bold text-yellow-800 mb-1">ตั้งอายุ (เดือน)</label><input type="number" id="detail-lifespan" class="w-full p-2 border border-yellow-300 rounded outline-none focus:ring-2 focus:ring-yellow-500" /></div>
+        <div class="flex-1 w-full"><label class="block text-sm font-bold text-orange-800 mb-1">เตือนเมื่อน้อยกว่า (ชิ้น)</label><input type="number" id="detail-minstock" class="w-full p-2 border border-orange-300 rounded outline-none focus:ring-2 focus:ring-orange-500" /></div>
+        <button id="btn-save-settings" onclick="saveSettings()" class="w-full sm:w-auto text-white font-bold py-2 px-6 rounded transition-colors bg-yellow-600 hover:bg-yellow-700">บันทึกตั้งค่า</button>
+      </div>
+      
+      <div class="px-6 py-3 bg-gray-50 border-b flex items-center gap-2">
+        <label class="text-sm font-bold text-gray-700">แสดงเฉพาะ:</label>
+        <select id="detail-filter" onchange="renderDetailTable()" class="p-1 border border-gray-300 rounded text-sm outline-none"><option value="all">ทั้งหมด</option><option value="รับเข้า">รับเข้า</option><option value="เบิกออก">เบิกออก</option></select>
+      </div>
+      <div class="p-0 overflow-y-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-white sticky top-0 shadow-sm"><tr><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">วันที่</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">ประเภท</th><th class="px-4 py-3 text-right text-xs font-bold text-gray-500">จำนวน</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">รถ/ร้าน</th><th class="px-4 py-3 text-center text-xs font-bold text-gray-500">จัดการ</th></tr></thead>
+          <tbody id="detail-tbody" class="bg-white divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+      <div class="p-3 border-t bg-gray-50 text-right"><button onclick="closeModal('modal-detail')" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 font-bold rounded">ปิด</button></div>
+    </div>
+  </div>
+
+  <!-- Scanner Modal -->
+  <div id="modal-scanner" class="hidden fixed inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center z-[100] p-4">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 relative">
+      <button onclick="closeScanner()" class="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl z-10">&times;</button>
+      <h3 class="text-lg font-bold mb-4 text-center">สแกนบาร์โค้ด / QR Code</h3>
+      <div id="reader" class="w-full overflow-hidden rounded-md border border-gray-300 bg-black min-h-[250px]"></div>
+      <p class="text-xs text-gray-500 text-center mt-4">หันกล้องให้เห็นบาร์โค้ดชัดเจน ระบบจะสแกนอัตโนมัติ</p>
+    </div>
+  </div>
+
+  <!-- Prompt Modal -->
+  <div id="modal-prompt" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <h3 class="text-xl font-bold text-green-700 mb-4">✅ บันทึกการตรวจสอบ</h3>
+      <div class="space-y-4">
+        <div><label class="block text-sm font-bold mb-1">เหตุผล</label><textarea id="prompt-reason" class="w-full p-2 border rounded outline-none h-20"></textarea></div>
+        <div><label class="block text-sm font-bold mb-1">ชื่อผู้ตรวจสอบ *</label><input type="text" id="prompt-checker" class="w-full p-2 border rounded outline-none" /></div>
+      </div>
+      <div class="mt-6 flex justify-end gap-2"><button onclick="closeModal('modal-prompt')" class="px-4 py-2 bg-gray-200 rounded font-bold">ยกเลิก</button><button id="btn-prompt-save" onclick="executePrompt()" class="px-4 py-2 text-white rounded font-bold bg-green-600 hover:bg-green-700">บันทึก</button></div>
+    </div>
+  </div>
+
+  <!-- Detail Alert Modal -->
+  <div id="modal-alert-detail" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+    <div class="bg-white rounded-lg p-6 max-w-sm w-full">
+      <h3 class="text-lg font-bold text-red-600 mb-2">รายละเอียดเบิกซ้ำ</h3>
+      <div id="alert-detail-content" class="text-sm space-y-2"></div>
+      <button onclick="closeModal('modal-alert-detail')" class="mt-4 w-full bg-gray-200 hover:bg-gray-300 py-2 rounded font-bold">ปิด</button>
+    </div>
+  </div>
+
+  <!-- Custom Alert/Confirm -->
+  <div id="modal-alert" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
+    <div class="bg-white rounded-lg p-6 text-center shadow-xl w-80">
+      <h3 id="alert-title" class="text-lg font-bold mb-2"></h3>
+      <p id="alert-msg" class="mb-4 text-sm whitespace-pre-line"></p>
+      <button id="alert-btn" onclick="closeModal('modal-alert')" class="w-full text-white font-bold py-2 rounded">ตกลง</button>
+    </div>
+  </div>
+
+  <div id="modal-confirm" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
+    <div class="bg-white rounded-lg p-6 shadow-xl max-w-md w-full">
+      <h3 class="text-lg font-bold mb-3 flex items-center gap-2">⚠️ ยืนยันการดำเนินการ</h3>
+      <p id="confirm-msg" class="mb-6 text-sm text-gray-600 whitespace-pre-line leading-relaxed"></p>
+      <div class="flex flex-col sm:flex-row-reverse gap-2">
+        <button id="confirm-yes" class="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors"></button>
+        <button id="confirm-no" class="w-full sm:w-auto px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-bold transition-colors"></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwA6nJhSKQGZIX_4xV4_rtqnHd0acNdQrqK8Aa0JnC_lgVKlfLOqfg_h7BM7Xa-6JRHRQ/exec';
+    
+    // Global State
+    let state = {
+      transactions: [], vehicles: [], itemSettings: {}, inventory: {},
+      existingProducts: [], existingPartsCodes: [], existingShops: [], existingVehicles: [],
+      activeTab: 'receive',
+      isOnline: navigator.onLine,
+      syncTasks: [],
+      scannerOrigin: null,
+      html5QrcodeScanner: null,
+      editingTx: null,
+      promptTx: null,
+      detailItem: null,
+      alertData: [],
+      lowStockAlerts: []
+    };
+
+    // Utils
+    const getEl = id => document.getElementById(id);
+    const formatDate = d => new Date(d).toISOString().split('T')[0];
+    
+    // ฟังก์ชันแปลง CSV
+    const parseCSV = (csvText) => {
+      const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (lines.length === 0) return [];
+      
+      const parseRow = (row) => {
+        const result = [];
+        let insideQuote = false;
+        let currentValue = "";
+        for (let i = 0; i < row.length; i++) {
+          const char = row[i];
+          if (char === '"') {
+            insideQuote = !insideQuote;
+          } else if (char === ',' && !insideQuote) {
+            result.push(currentValue);
+            currentValue = "";
+          } else {
+            currentValue += char;
+          }
+        }
         result.push(currentValue);
-        currentValue = "";
-      } else {
-        currentValue += char;
+        return result;
+      };
+
+      const headers = parseRow(lines[0]).map(h => h.trim());
+      const result = [];
+      for (let i = 1; i < lines.length; i++) {
+        const obj = {};
+        const currentLine = parseRow(lines[i]);
+        headers.forEach((header, index) => {
+          let val = currentLine[index] !== undefined ? currentLine[index].trim() : '';
+          if(val.startsWith('"') && val.endsWith('"')) val = val.substring(1, val.length-1);
+          obj[header] = val;
+        });
+        obj._rowIndex = i + 1; 
+        result.push(obj);
       }
-    }
-    result.push(currentValue);
-    return result;
-  };
+      return result;
+    };
 
-  const headers = parseRow(lines[0]).map(h => h.trim());
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    const obj = {};
-    const currentLine = parseRow(lines[i]);
-    headers.forEach((header, index) => {
-      let val = currentLine[index] !== undefined ? currentLine[index].trim() : '';
-      if(val.startsWith('"') && val.endsWith('"')) val = val.substring(1, val.length-1);
-      obj[header] = val;
-    });
-    obj._rowIndex = i + 1; 
-    result.push(obj);
-  }
-  return result;
-};
+    // ฟังก์ชันจำกัดเวลา Fetch (Timeout) 15 วินาที
+    const fetchWithTimeout = async (url, options, timeout = 15000) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+      } catch (error) {
+        clearTimeout(id);
+        throw error;
+      }
+    };
+    
+    // Initialization
+    window.onload = async () => {
+      getEl('rec-date').value = formatDate(new Date());
+      getEl('dis-date').value = formatDate(new Date());
+      
+      window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
+      window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-const fetchWithTimeout = async (url, options, timeout = 15000) => {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
-  }
-};
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState('receive');
-  const [vehicles, setVehicles] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  
-  const [loading, setLoading] = useState(true); 
-  const [isSyncing, setIsSyncing] = useState(false); 
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  // Background Sync Tasks State (จำกัดโชว์แค่ 3 อันล่าสุด)
-  const [syncTasks, setSyncTasks] = useState([]);
-
-  // Form States
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [productName, setProductName] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [totalPrice, setTotalPrice] = useState('');
-  const [shopName, setShopName] = useState('');
-  const [selectedVehicle, setSelectedVehicle] = useState('');
-  const [partsCode, setPartsCode] = useState('');
-
-  // History Filter States
-  const [histType, setHistType] = useState('all');
-  const [histVehicle, setHistVehicle] = useState('');
-  const [histProduct, setHistProduct] = useState(''); 
-  const [histStartDate, setHistStartDate] = useState('');
-  const [histEndDate, setHistEndDate] = useState('');
-
-  const [summarySearch, setSummarySearch] = useState('');
-  const [viewShopName, setViewShopName] = useState('');
-
-  // Modals & Settings
-  const [detailModalItem, setDetailModalItem] = useState(null);
-  const [modalFilterType, setModalFilterType] = useState('all');
-  
-  const [itemSettings, setItemSettings] = useState({}); 
-  const [tempLifespan, setTempLifespan] = useState('');
-  const [tempMinStock, setTempMinStock] = useState(''); 
-
-  const [isRenamingItem, setIsRenamingItem] = useState(false);
-  const [renameData, setRenameData] = useState({ newName: '', newPartsCode: '' });
-
-  const [alertData, setAlertData] = useState({ show: false, message: '', type: 'info' });
-  const [confirmData, setConfirmData] = useState({ show: false, message: '', confirmText: '', cancelText: '', onConfirm: null, onCancelAction: null });
-  const [alertDetailModal, setAlertDetailModal] = useState({ show: false, info: null, transaction: null });
-  const [clearPromptModal, setClearPromptModal] = useState({ show: false, transaction: null, reason: '', checker: '' });
-  const [editModal, setEditModal] = useState({ show: false, originalData: null, currentData: {} });
-
-  // Barcode Scanner State
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-
-  const closeConfirm = () => setConfirmData({ show: false, message: '', confirmText: '', cancelText: '', onConfirm: null, onCancelAction: null });
-
-  const addSyncTask = (id, message) => {
-    setSyncTasks(prev => {
-      const newTasks = [...prev, { id, status: 'syncing', message }];
-      return newTasks.slice(-3);
-    });
-  };
-  const updateSyncTask = (id, status, message) => {
-    setSyncTasks(prev => prev.map(t => t.id === id ? { ...t, status, message } : t));
-  };
-  const removeSyncTaskDelayed = (id, delay = 3000) => {
-    setTimeout(() => {
-      setSyncTasks(prev => prev.filter(t => t.id !== id));
-    }, delay);
-  };
-
-  // โหลด Script สำหรับ Barcode Scanner และดึงข้อมูลเริ่มต้น
-  useEffect(() => {
-    // 1. นำเข้าไลบรารี html5-qrcode
-    const script = document.createElement('script');
-    script.src = "https://unpkg.com/html5-qrcode";
-    script.async = true;
-    document.body.appendChild(script);
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const fetchData = async () => {
+      // Load Cache
       const cachedTrans = localStorage.getItem('cachedTransactions_v3');
       const cachedVehicles = localStorage.getItem('cachedVehicles_v3');
       const cachedItemSettings = localStorage.getItem('cachedItemSettings_v3');
       
       if (cachedTrans && cachedVehicles) {
-        setTransactions(JSON.parse(cachedTrans));
-        setVehicles(JSON.parse(cachedVehicles));
-        if(cachedItemSettings) setItemSettings(JSON.parse(cachedItemSettings));
-        setLoading(false); 
-        setIsSyncing(true); 
-      } else {
-        setLoading(true); 
+        state.transactions = JSON.parse(cachedTrans);
+        state.vehicles = JSON.parse(cachedVehicles);
+        if(cachedItemSettings) state.itemSettings = JSON.parse(cachedItemSettings);
+        computeDerivedState();
+        getEl('loading-screen').classList.add('hidden');
+        getEl('main-content').style.display = 'block';
+        getEl('sync-indicator').classList.remove('hidden');
+        switchTab('receive');
       }
 
+      // Fetch Real Data
       try {
-        const vehicleRes = await fetchWithTimeout(VEHICLE_CSV_URL, {}, 10000);
-        const vehicleText = await vehicleRes.text();
-        const parsedVehicles = parseCSV(vehicleText);
+        const [vRes, tRes, lRes] = await Promise.all([
+          fetchWithTimeout('https://docs.google.com/spreadsheets/d/e/2PACX-1vRZTa9PWUXGmxpu7YQPEug2HLzEbcl7-PG8cGqdLy5fVDoKE9BGCkDLUdKZsw3RjNCg1nVoZOul9qqO/pub?gid=0&single=true&output=csv', {}, 10000),
+          fetchWithTimeout('https://docs.google.com/spreadsheets/d/e/2PACX-1vRZTa9PWUXGmxpu7YQPEug2HLzEbcl7-PG8cGqdLy5fVDoKE9BGCkDLUdKZsw3RjNCg1nVoZOul9qqO/pub?gid=654756465&single=true&output=csv', {}, 10000),
+          fetchWithTimeout('https://docs.google.com/spreadsheets/d/e/2PACX-1vRZTa9PWUXGmxpu7YQPEug2HLzEbcl7-PG8cGqdLy5fVDoKE9BGCkDLUdKZsw3RjNCg1nVoZOul9qqO/pub?gid=1305872211&single=true&output=csv', {}, 10000)
+        ]);
 
-        const transRes = await fetchWithTimeout(TRANSACTIONS_CSV_URL, {}, 10000);
-        const transText = await transRes.text();
-        const parsedTrans = parseCSV(transText);
-
-        const lifespanRes = await fetchWithTimeout(LIFESPAN_CSV_URL, {}, 10000);
-        const lifespanText = await lifespanRes.text();
-        const parsedLifespan = parseCSV(lifespanText);
+        state.vehicles = parseCSV(await vRes.text());
+        state.transactions = parseCSV(await tRes.text());
         
-        const settingsObj = {};
-        parsedLifespan.forEach(row => {
+        const lifespanData = parseCSV(await lRes.text());
+        state.itemSettings = {};
+        lifespanData.forEach(row => {
           if (row['ชื่อสินค้า']) {
-            settingsObj[row['ชื่อสินค้า'].trim()] = {
+            state.itemSettings[row['ชื่อสินค้า'].trim()] = {
               lifespan: row['อายุการใช้งาน'] || '',
-              minStock: row['แจ้งเตือนขั้นต่ำ'] || '' 
+              minStock: row['แจ้งเตือนขั้นต่ำ'] || ''
             };
           }
         });
 
-        setVehicles(parsedVehicles);
-        setTransactions(parsedTrans);
-        setItemSettings(settingsObj);
+        localStorage.setItem('cachedVehicles_v3', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v3', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v3', JSON.stringify(state.itemSettings));
 
-        localStorage.setItem('cachedVehicles_v3', JSON.stringify(parsedVehicles));
-        localStorage.setItem('cachedTransactions_v3', JSON.stringify(parsedTrans));
-        localStorage.setItem('cachedItemSettings_v3', JSON.stringify(settingsObj));
-
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-        setIsSyncing(false);
+      } catch (e) { console.error("Fetch error", e); } 
+      finally {
+        computeDerivedState();
+        getEl('loading-screen').classList.add('hidden');
+        getEl('sync-indicator').classList.add('hidden');
+        getEl('main-content').style.display = 'block';
+        if(state.activeTab === 'receive') switchTab('receive'); // initial render
       }
     };
 
-    fetchData();
+    function computeDerivedState() {
+      state.inventory = {};
+      const sortedTrans = [...state.transactions].sort((a, b) => new Date(a['วันที่']) - new Date(b['วันที่']));
+      
+      sortedTrans.forEach(curr => {
+        const product = (curr['ชื่อสินค้า'] || '').trim();
+        const type = curr['ประเภทรายการ'];
+        const qty = parseFloat(curr['จำนวน'] || 0);
+        const parts = (curr['รหัสอะไหล่'] || '').trim();
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, []);
+        if (!product) return;
+        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCode: '' };
+        if (type === 'รับเข้า' && parts !== '') state.inventory[product].partsCode = parts;
 
-  // จัดการเปิด/ปิด สแกนเนอร์
-  useEffect(() => {
-    let html5QrcodeScanner = null;
-
-    if (isScannerOpen) {
-      // รอให้ script โหลดเสร็จก่อน
-      const checkLibrary = setInterval(() => {
-        if (window.Html5QrcodeScanner) {
-          clearInterval(checkLibrary);
-          html5QrcodeScanner = new window.Html5QrcodeScanner(
-            "reader",
-            { fps: 10, qrbox: {width: 250, height: 250} },
-            /* verbose= */ false
-          );
-          html5QrcodeScanner.render(
-            (decodedText) => {
-              // เมื่อสแกนสำเร็จ ให้อัปเดตค่ารหัสพาร์ท และปิดหน้าจอ
-              handlePartsCodeChange({ target: { value: decodedText } });
-              
-              // แจ้งเตือนเล็กน้อยให้รู้ว่าสแกนติดแล้ว
-              setAlertData({ show: true, message: `สแกนสำเร็จ: ${decodedText}`, type: 'success' });
-              
-              setIsScannerOpen(false);
-            },
-            (errorMessage) => {
-              // ซ่อน error ปกติของการค้นหาบาร์โค้ด
-            }
-          );
+        if (type === 'รับเข้า') {
+          state.inventory[product].in += qty;
+          state.inventory[product].balance += qty;
+        } else if (type === 'เบิกออก') {
+          state.inventory[product].out += qty;
+          state.inventory[product].balance -= qty;
         }
-      }, 100);
-
-      return () => {
-        clearInterval(checkLibrary);
-        if (html5QrcodeScanner) {
-          html5QrcodeScanner.clear().catch(error => console.error("Failed to clear scanner", error));
-        }
-      };
-    }
-  }, [isScannerOpen]);
-
-  useEffect(() => {
-    if (transactions.length > 0) {
-      localStorage.setItem('cachedTransactions_v3', JSON.stringify(transactions));
-    }
-  }, [transactions]);
-
-  const inventory = useMemo(() => {
-    const acc = {};
-    const sortedTrans = [...transactions].sort((a, b) => new Date(a['วันที่']) - new Date(b['วันที่']));
-    
-    sortedTrans.forEach(curr => {
-      const product = (curr['ชื่อสินค้า'] || '').trim();
-      const type = curr['ประเภทรายการ'];
-      const qty = parseFloat(curr['จำนวน'] || 0);
-      const parts = (curr['รหัสอะไหล่'] || '').trim();
-
-      if (!product) return;
-      if (!acc[product]) acc[product] = { in: 0, out: 0, balance: 0, partsCode: '' };
-
-      if (type === 'รับเข้า' && parts !== '') {
-        acc[product].partsCode = parts;
-      }
-
-      if (type === 'รับเข้า') {
-        acc[product].in += qty;
-        acc[product].balance += qty;
-      } else if (type === 'เบิกออก') {
-        acc[product].out += qty;
-        acc[product].balance -= qty;
-      }
-    });
-    return acc;
-  }, [transactions]);
-
-  const existingProducts = Object.keys(inventory).sort();
-  const existingPartsCodes = [...new Set(transactions.map(t => (t['รหัสอะไหล่'] || '').trim()).filter(Boolean))].sort();
-
-  const handleProductNameChange = (e) => {
-    const newName = e.target.value;
-    setProductName(newName);
-    if (inventory[newName.trim()] && inventory[newName.trim()].partsCode) {
-      setPartsCode(inventory[newName.trim()].partsCode);
-    } else if (newName === '') {
-      setPartsCode(''); 
-    }
-  };
-
-  const handlePartsCodeChange = (e) => {
-    const newCode = e.target.value;
-    setPartsCode(newCode);
-    if (newCode.trim() !== '') {
-      const matchedProduct = Object.keys(inventory).find(p => 
-        (inventory[p].partsCode || '').toLowerCase() === newCode.trim().toLowerCase()
-      );
-      if (matchedProduct) setProductName(matchedProduct);
-    }
-  };
-
-  const filteredInventoryProducts = existingProducts.filter(p => {
-    const searchLower = summarySearch.toLowerCase();
-    const nameMatch = p.toLowerCase().includes(searchLower);
-    const partsMatch = (inventory[p].partsCode || '').toLowerCase().includes(searchLower);
-    return nameMatch || partsMatch;
-  });
-
-  const checkLifespanWarning = () => {
-    const targetLifespan = itemSettings[productName.trim()]?.lifespan;
-    if (activeTab !== 'dispatch' || !productName.trim() || !selectedVehicle || !targetLifespan) return null;
-    const pastDispatches = transactions.filter(t => 
-      t['ประเภทรายการ'] === 'เบิกออก' && (t['ชื่อสินค้า']||'').trim() === productName.trim() && 
-      (t['รหัสรถ'] === selectedVehicle || t['รหัสรถที่เบิก'] === selectedVehicle)
-    ).sort((a, b) => new Date(b['วันที่']) - new Date(a['วันที่']));
-
-    if (pastDispatches.length > 0) {
-      const lastDispatch = pastDispatches[0];
-      const pastDate = new Date(lastDispatch['วันที่']);
-      const currentDate = new Date(date);
-      const diffInDays = (currentDate - pastDate) / (1000 * 60 * 60 * 24);
-      const monthsSince = diffInDays / 30.44;
-      const targetLifespanNum = parseFloat(targetLifespan);
-      if (monthsSince < targetLifespanNum) {
-        return { lastDate: lastDispatch['วันที่'], monthsSince: monthsSince.toFixed(1), targetLifespan: targetLifespanNum };
-      }
-    }
-    return null;
-  };
-
-  const lifespanWarning = checkLifespanWarning();
-
-  const getAlertDetailedInfo = (problemTx) => {
-    const pastDispatches = transactions.filter(t => 
-      t['ประเภทรายการ'] === 'เบิกออก' && (t['ชื่อสินค้า']||'').trim() === (problemTx['ชื่อสินค้า']||'').trim() && 
-      (t['รหัสรถ'] === problemTx['รหัสรถ'] || t['รหัสรถที่เบิก'] === problemTx['รหัสรถ']) &&
-      new Date(t['วันที่']) < new Date(problemTx['วันที่'])
-    ).sort((a, b) => new Date(b['วันที่']) - new Date(a['วันที่']));
-    const prevTx = pastDispatches[0];
-    if (!prevTx) return null;
-    const prevDate = new Date(prevTx['วันที่']);
-    const currDate = new Date(problemTx['วันที่']);
-    const diffDays = Math.floor((currDate - prevDate) / (1000 * 60 * 60 * 24));
-    const diffMonths = (diffDays / 30.44).toFixed(1);
-    return {
-      prevDateStr: prevTx['วันที่'], currDateStr: problemTx['วันที่'], diffDays, diffMonths,
-      targetLifespan: itemSettings[(problemTx['ชื่อสินค้า']||'').trim()]?.lifespan || 'ไม่ได้ระบุ'
-    };
-  };
-
-  const alertTransactions = useMemo(() => {
-    const dynamicAlerts = [];
-    const dispatches = transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก');
-    const grouped = {};
-    dispatches.forEach(t => {
-        const v = t['รหัสรถ'] || t['รหัสรถที่เบิก'];
-        const p = (t['ชื่อสินค้า']||'').trim();
-        if (!v || !p) return;
-        const key = `${v}_${p}`;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(t);
-    });
-
-    Object.values(grouped).forEach(group => {
-        group.sort((a, b) => new Date(a['วันที่']) - new Date(b['วันที่']));
-        for (let i = 1; i < group.length; i++) {
-            const currTx = group[i];
-            const prevTx = group[i-1];
-            const pName = (currTx['ชื่อสินค้า']||'').trim();
-            const targetLifespan = itemSettings[pName]?.lifespan;
-            if (targetLifespan) {
-                const diffDays = (new Date(currTx['วันที่']) - new Date(prevTx['วันที่'])) / (1000 * 60 * 60 * 24);
-                const diffMonths = diffDays / 30.44;
-                if (diffMonths < parseFloat(targetLifespan)) {
-                    const status = currTx['สถานะการเตือน'] || '';
-                    if (!status.includes('ตรวจสอบแล้ว')) {
-                        if (!dynamicAlerts.some(a => a._rowIndex === currTx._rowIndex)) dynamicAlerts.push(currTx);
-                    }
-                }
-            }
-        }
-    });
-    return dynamicAlerts.sort((a, b) => new Date(b['วันที่']) - new Date(a['วันที่']));
-  }, [transactions, itemSettings]);
-
-  const lowStockAlerts = useMemo(() => {
-    const alerts = [];
-    existingProducts.forEach(product => {
-      const balance = inventory[product].balance;
-      const minStockStr = itemSettings[product]?.minStock;
-      if (minStockStr && minStockStr.trim() !== '') {
-        const threshold = parseFloat(minStockStr);
-        if (!isNaN(threshold) && balance <= threshold) {
-          alerts.push({ product, partsCode: inventory[product].partsCode, balance, threshold });
-        }
-      }
-    });
-    return alerts.sort((a, b) => a.balance - b.balance);
-  }, [inventory, itemSettings, existingProducts]);
-
-  const totalAlertCount = alertTransactions.length + lowStockAlerts.length;
-  const existingShops = [...new Set(transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า']).map(t => t['ชื่อร้านค้า']))].filter(Boolean);
-  const existingDispatchedVehicles = [...new Set(transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => t['รหัสรถ']))].filter(Boolean);
-
-  const handlePreSubmit = (type) => {
-    if (!productName.trim() || !quantity) return setAlertData({ show: true, message: "กรุณากรอกชื่อสินค้าและจำนวนให้ครบถ้วน", type: 'error' });
-    
-    if (!isOnline) {
-      setAlertData({ show: true, message: "คุณออฟไลน์อยู่! ไม่สามารถบันทึกข้อมูลได้ กรุณารอให้อินเทอร์เน็ตกลับมาใช้งานได้ (ข้อมูลที่คุณกรอกยังอยู่ครบ)", type: 'error' });
-      return;
-    }
-
-    if (type === 'dispatch') {
-      const currentBalance = inventory[productName.trim()]?.balance || 0;
-      const dispatchQty = parseFloat(quantity);
-      if (dispatchQty > currentBalance) {
-        return setAlertData({ show: true, message: `ไม่อนุญาตให้เบิก!\nจำนวนต้องการเบิก (${dispatchQty}) มีมากกว่าคงเหลือ (${currentBalance})`, type: 'error' });
-      }
-    }
-
-    if (type === 'dispatch' && lifespanWarning) {
-      const confirmMsg = `⚠️ แจ้งเตือนก่อนเบิก!\nรถรหัส ${selectedVehicle} เพิ่งเบิก "${productName}" ไปเมื่อ ${lifespanWarning.lastDate} (ผ่านไป ${lifespanWarning.monthsSince} เดือน)\nซึ่งยังไม่ครบกำหนด (${lifespanWarning.targetLifespan} เดือน)\nแน่ใจหรือไม่ที่จะเบิกซ้ำและส่งให้หัวหน้าตรวจสอบ?`;
-      setConfirmData({
-        show: true, message: confirmMsg, confirmText: 'ยืนยันทำรายการต่อ', cancelText: 'ยกเลิก',
-        onConfirm: () => { closeConfirm(); executeSubmit(type, true); },
-        onCancelAction: closeConfirm
       });
-    } else {
-      executeSubmit(type, false);
-    }
-  };
 
-  const executeSubmit = async (type, isAlertPending) => {
-    let finalPartsCode = partsCode;
-    if (type === 'dispatch' && !partsCode.trim() && inventory[productName.trim()]?.partsCode) {
-      finalPartsCode = inventory[productName.trim()].partsCode;
-    }
+      state.existingProducts = Object.keys(state.inventory).sort();
+      state.existingPartsCodes = [...new Set(state.transactions.map(t => (t['รหัสอะไหล่'] || '').trim()).filter(Boolean))].sort();
+      state.existingShops = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า']).map(t => t['ชื่อร้านค้า']))].filter(Boolean);
+      state.existingVehicles = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => t['รหัสรถ']))].filter(Boolean);
 
-    const taskId = Date.now();
-    const maxRowIndex = transactions.length > 0 ? Math.max(...transactions.map(t => t._rowIndex || 0)) : 1;
-    const newTransaction = {
-      'action': 'saveTransaction', '_rowIndex': maxRowIndex + 1,
-      'วันที่': date, 'ประเภทรายการ': type === 'receive' ? 'รับเข้า' : 'เบิกออก',
-      'รหัสอะไหล่': finalPartsCode.trim(), 'ชื่อสินค้า': productName.trim(), 'จำนวน': parseFloat(quantity),
-      'ราคารวม': type === 'receive' ? parseFloat(totalPrice || 0) : '', 'ชื่อร้านค้า': type === 'receive' ? shopName : '', 'รหัสรถ': type === 'dispatch' ? selectedVehicle : '',
-      'สถานะการเตือน': isAlertPending ? 'รอตรวจสอบ' : '', 'เหตุผล': '', 'ตรวจสอบโดย': ''
-    };
+      // Alerts
+      state.alertData = [];
+      const dispatches = state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก');
+      const grouped = {};
+      dispatches.forEach(t => {
+          const v = t['รหัสรถ'] || t['รหัสรถที่เบิก'];
+          const p = (t['ชื่อสินค้า']||'').trim();
+          if (!v || !p) return;
+          const key = `${v}_${p}`;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(t);
+      });
 
-    setTransactions([newTransaction, ...transactions]);
-    setProductName(''); setPartsCode(''); setQuantity(''); setTotalPrice(''); setShopName(''); setSelectedVehicle('');
-    
-    addSyncTask(taskId, `กำลังบันทึกรายการ...`);
+      Object.values(grouped).forEach(group => {
+          group.sort((a, b) => new Date(a['วันที่']) - new Date(b['วันที่']));
+          for (let i = 1; i < group.length; i++) {
+              const currTx = group[i];
+              const prevTx = group[i-1];
+              const pName = (currTx['ชื่อสินค้า']||'').trim();
+              const targetLifespan = state.itemSettings[pName]?.lifespan;
+              if (targetLifespan) {
+                  const diffDays = (new Date(currTx['วันที่']) - new Date(prevTx['วันที่'])) / (1000 * 60 * 60 * 24);
+                  if (diffDays / 30.44 < parseFloat(targetLifespan)) {
+                      if (!(currTx['สถานะการเตือน'] || '').includes('ตรวจสอบแล้ว') && !state.alertData.some(a => a._rowIndex === currTx._rowIndex)) {
+                          state.alertData.push(currTx);
+                      }
+                  }
+              }
+          }
+      });
+      state.alertData.sort((a, b) => new Date(b['วันที่']) - new Date(a['วันที่']));
 
-    try {
-      const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwA6nJhSKQGZIX_4xV4_rtqnHd0acNdQrqK8Aa0JnC_lgVKlfLOqfg_h7BM7Xa-6JRHRQ/exec';
-      await fetchWithTimeout(WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(newTransaction) }, 15000);
-      updateSyncTask(taskId, 'success', 'บันทึกรายการสำเร็จ');
-      removeSyncTaskDelayed(taskId);
-    } catch (error) {
-      updateSyncTask(taskId, 'error', 'คลาวด์ออฟไลน์ (ข้อมูลบันทึกในเครื่องแล้ว)');
-      removeSyncTaskDelayed(taskId, 6000);
-    }
-  };
-
-  const handleDeleteTransaction = (transaction) => {
-    setConfirmData({
-      show: true,
-      message: `ยืนยันลบรายการ ${transaction['ประเภทรายการ']} "${transaction['ชื่อสินค้า']}" จำนวน ${transaction['จำนวน']} ชิ้น?`,
-      confirmText: 'ยืนยันการลบ', cancelText: 'ยกเลิก',
-      onConfirm: async () => {
-        closeConfirm();
-        const taskId = Date.now();
-        setTransactions(transactions.filter(t => t._rowIndex !== transaction._rowIndex));
-        addSyncTask(taskId, 'กำลังลบข้อมูล...');
-
-        try {
-          const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwA6nJhSKQGZIX_4xV4_rtqnHd0acNdQrqK8Aa0JnC_lgVKlfLOqfg_h7BM7Xa-6JRHRQ/exec';
-          await fetchWithTimeout(WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'deleteTransaction', oldData: transaction }) }, 15000);
-          updateSyncTask(taskId, 'success', 'ลบข้อมูลสำเร็จ');
-          removeSyncTaskDelayed(taskId);
-        } catch (error) {
-          updateSyncTask(taskId, 'error', 'เกิดข้อผิดพลาดในการลบคลาวด์');
-          removeSyncTaskDelayed(taskId, 5000);
+      state.lowStockAlerts = [];
+      state.existingProducts.forEach(product => {
+        const balance = state.inventory[product].balance;
+        const minStr = state.itemSettings[product]?.minStock;
+        if (minStr && minStr.trim() !== '') {
+          const th = parseFloat(minStr);
+          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].partsCode, balance, threshold: th });
         }
-      },
-      onCancelAction: closeConfirm
-    });
-  };
+      });
+      state.lowStockAlerts.sort((a, b) => a.balance - b.balance);
 
-  const openEditModal = (transaction) => setEditModal({ show: true, originalData: transaction, currentData: { ...transaction } });
-
-  const executeEdit = async () => {
-    const taskId = Date.now();
-    const payload = { action: 'editTransaction', oldData: editModal.originalData, newData: editModal.currentData };
-    
-    setTransactions(transactions.map(t => t._rowIndex === editModal.originalData._rowIndex ? editModal.currentData : t));
-    setEditModal({ show: false, originalData: null, currentData: {} });
-    addSyncTask(taskId, 'กำลังแก้ไขข้อมูล...');
-
-    try {
-      const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwA6nJhSKQGZIX_4xV4_rtqnHd0acNdQrqK8Aa0JnC_lgVKlfLOqfg_h7BM7Xa-6JRHRQ/exec';
-      const res = await fetchWithTimeout(WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }, 15000);
-      const data = await res.json();
-      if(data.status === 'error') throw new Error(data.message);
-      
-      updateSyncTask(taskId, 'success', 'แก้ไขสำเร็จ');
-      removeSyncTaskDelayed(taskId);
-    } catch (error) {
-      updateSyncTask(taskId, 'error', 'เกิดข้อผิดพลาดในการแก้ไขบนคลาวด์');
-      removeSyncTaskDelayed(taskId, 5000);
+      updateDatalists();
+      renderAllTables();
     }
-  };
 
-  const handleGlobalRename = async () => {
-    if (!renameData.newName.trim()) return alert("กรุณาระบุชื่อสินค้าใหม่");
-    const taskId = Date.now();
-    
-    const payload = { action: 'globalRename', oldName: detailModalItem, newName: renameData.newName.trim(), newPartsCode: renameData.newPartsCode.trim() };
-    
-    setTransactions(transactions.map(t => {
-      if ((t['ชื่อสินค้า']||'').trim() === (detailModalItem||'').trim()) {
-        return { ...t, 'ชื่อสินค้า': renameData.newName.trim(), 'รหัสอะไหล่': renameData.newPartsCode.trim() };
+    function renderNetwork() {
+      const banner = getEl('offline-banner');
+      if(state.isOnline) banner.classList.add('hidden'); else banner.classList.remove('hidden');
+    }
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      ['receive', 'dispatch', 'summary', 'shops', 'history', 'alerts'].forEach(t => {
+        getEl(`tab-${t}`).classList.add('hidden');
+        const btn = getEl(`tab-btn-${t}`);
+        btn.className = `flex-1 min-w-[100px] py-4 text-center font-medium transition-colors ${t === tab ? getTabColor(t) : 'text-gray-500 hover:bg-gray-50'}`;
+      });
+      getEl(`tab-${tab}`).classList.remove('hidden');
+      if(tab === 'summary') renderSummary();
+      if(tab === 'shops') renderShops();
+      if(tab === 'history') renderHistory();
+      if(tab === 'alerts') renderAlerts();
+    }
+
+    function getTabColor(tab) {
+      if(tab==='receive') return 'bg-blue-50 text-blue-700 border-b-2 border-blue-700';
+      if(tab==='dispatch') return 'bg-orange-50 text-orange-600 border-b-2 border-orange-600';
+      if(tab==='summary') return 'bg-green-50 text-green-700 border-b-2 border-green-700';
+      if(tab==='shops') return 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-700';
+      if(tab==='history') return 'bg-purple-50 text-purple-700 border-b-2 border-purple-700';
+      if(tab==='alerts') return 'bg-red-50 text-red-700 border-b-2 border-red-700';
+    }
+
+    function updateDatalists() {
+      const partsHTML = state.existingPartsCodes.map(c => `<option value="${c}">`).join('');
+      getEl('parts-list').innerHTML = partsHTML;
+      const prodHTML = state.existingProducts.map(p => `<option value="${p}">`).join('');
+      getEl('products-list').innerHTML = prodHTML;
+      getEl('shops-list').innerHTML = state.existingShops.map(s => `<option value="${s}">`).join('');
+      
+      const vHTML = state.vehicles.map(v => v['รหัส'] ? `<option value="${v['รหัส']}">${v['ทะเบียน'] ? `(ทะเบียน: ${v['ทะเบียน']})` : ''}</option>` : '').join('');
+      getEl('vehicles-list').innerHTML = vHTML;
+
+      const shopSel = getEl('shops-select');
+      shopSel.innerHTML = '<option value="">-- เลือกร้านค้า --</option>' + state.existingShops.map(s => `<option value="${s}">${s}</option>`).join('');
+      
+      const histProd = getEl('hist-product');
+      histProd.innerHTML = '<option value="">-- ทุกรายการ --</option>' + state.existingProducts.map(p => `<option value="${p}">${p}</option>`).join('');
+      
+      const histVeh = getEl('hist-vehicle');
+      histVeh.innerHTML = '<option value="">-- รถทุกคัน --</option>' + state.existingVehicles.map(v => `<option value="${v}">${v}</option>`).join('');
+    }
+
+    function handlePartsChange(prefix) {
+      const code = getEl(`${prefix}-parts`).value.trim();
+      if(code !== '') {
+        const matched = Object.keys(state.inventory).find(p => (state.inventory[p].partsCode||'').toLowerCase() === code.toLowerCase());
+        if(matched) {
+          getEl(`${prefix}-product`).value = matched;
+          if(prefix === 'dis') checkDispatchWarning();
+        }
       }
-      return t;
-    }));
-    if (itemSettings[detailModalItem]) {
-      const newSettings = { ...itemSettings };
-      newSettings[renameData.newName.trim()] = newSettings[detailModalItem];
-      delete newSettings[detailModalItem];
-      setItemSettings(newSettings);
     }
-    setDetailModalItem(renameData.newName.trim());
-    setIsRenamingItem(false);
-    
-    addSyncTask(taskId, 'กำลังเปลี่ยนชื่อทั้งระบบ...');
 
-    try {
-      const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwA6nJhSKQGZIX_4xV4_rtqnHd0acNdQrqK8Aa0JnC_lgVKlfLOqfg_h7BM7Xa-6JRHRQ/exec';
-      const res = await fetchWithTimeout(WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }, 15000);
-      const data = await res.json();
-      if(data.status === 'error') throw new Error(data.message);
-      
-      updateSyncTask(taskId, 'success', 'เปลี่ยนชื่อทั้งระบบสำเร็จ');
-      removeSyncTaskDelayed(taskId);
-    } catch (error) {
-      updateSyncTask(taskId, 'error', 'คลาวด์ทำงานล้มเหลว (แจ้งเตือนผู้ดูแล)');
-      removeSyncTaskDelayed(taskId, 5000);
-    }
-  };
-
-  const getFilteredTransactions = () => {
-    return transactions.filter(t => {
-      if (histType !== 'all' && t['ประเภทรายการ'] !== histType) return false;
-      if (histVehicle && (t['รหัสรถ'] || '') !== histVehicle) return false;
-      if (histProduct && (t['ชื่อสินค้า'] || '').trim() !== histProduct.trim()) return false;
-      if (histStartDate && t['วันที่'] < histStartDate) return false;
-      if (histEndDate && t['วันที่'] > histEndDate) return false;
-      return true;
-    }).sort((a, b) => new Date(b['วันที่']) - new Date(a['วันที่'])); 
-  };
-
-  const getShopTransactions = () => {
-    return transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า'] === viewShopName)
-                       .sort((a, b) => new Date(b['วันที่']) - new Date(a['วันที่']));
-  };
-
-  const handleSaveSettings = async () => {
-    const taskId = Date.now();
-    const newSettingsData = { action: 'saveLifespan', 'ชื่อสินค้า': detailModalItem, 'อายุการใช้งาน': tempLifespan, 'แจ้งเตือนขั้นต่ำ': tempMinStock };
-    
-    setItemSettings(prev => ({ ...prev, [detailModalItem]: { lifespan: tempLifespan, minStock: tempMinStock } }));
-    addSyncTask(taskId, 'กำลังตั้งค่าการแจ้งเตือน...');
-
-    try {
-      const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwA6nJhSKQGZIX_4xV4_rtqnHd0acNdQrqK8Aa0JnC_lgVKlfLOqfg_h7BM7Xa-6JRHRQ/exec';
-      await fetchWithTimeout(WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(newSettingsData) }, 15000);
-      updateSyncTask(taskId, 'success', 'บันทึกการตั้งค่าสำเร็จ');
-      removeSyncTaskDelayed(taskId);
-    } catch (error) {
-      updateSyncTask(taskId, 'error', 'เกิดข้อผิดพลาดในการบันทึกตั้งค่า');
-      removeSyncTaskDelayed(taskId, 5000);
-    }
-  };
-
-  const openClearPrompt = (transaction) => setClearPromptModal({ show: true, transaction: transaction, reason: '', checker: '' });
-
-  const executeClearAlertWithReason = async () => {
-    if (!clearPromptModal.checker.trim()) return alert("กรุณาลงชื่อผู้ตรวจสอบ");
-    const taskId = Date.now();
-    const transaction = clearPromptModal.transaction;
-    const payload = {
-      'action': 'clearAlert', '_rowIndex': transaction._rowIndex,
-      'วันที่': transaction['วันที่'], 'รหัสรถ': transaction['รหัสรถ'], 'ชื่อสินค้า': transaction['ชื่อสินค้า'], 'จำนวน': transaction['จำนวน'],
-      'สถานะใหม่': 'ตรวจสอบแล้ว', 'เหตุผล': clearPromptModal.reason || '-', 'ตรวจสอบโดย': clearPromptModal.checker
-    };
-    
-    setTransactions(transactions.map(t => {
-      if (t._rowIndex === transaction._rowIndex) {
-          return { ...t, 'สถานะการเตือน': 'ตรวจสอบแล้ว', 'เหตุผล': clearPromptModal.reason || '-', 'ตรวจสอบโดย': clearPromptModal.checker };
+    function handleProductChange(prefix) {
+      const name = getEl(`${prefix}-product`).value.trim();
+      if(state.inventory[name] && state.inventory[name].partsCode) {
+        getEl(`${prefix}-parts`).value = state.inventory[name].partsCode;
+      } else if (name === '') {
+        getEl(`${prefix}-parts`).value = '';
       }
-      return t;
-    }));
-    setClearPromptModal({ show: false, transaction: null, reason: '', checker: '' });
-    addSyncTask(taskId, 'กำลังล้างแจ้งเตือน...');
-
-    try {
-      const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwA6nJhSKQGZIX_4xV4_rtqnHd0acNdQrqK8Aa0JnC_lgVKlfLOqfg_h7BM7Xa-6JRHRQ/exec';
-      const response = await fetchWithTimeout(WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }, 15000);
-      const result = await response.json();
-      if (result.status === 'error') throw new Error(result.message);
-      
-      updateSyncTask(taskId, 'success', 'ล้างแจ้งเตือนสำเร็จ');
-      removeSyncTaskDelayed(taskId);
-    } catch (error) {
-      updateSyncTask(taskId, 'error', 'ส่งการอนุมัติล้มเหลว!');
-      removeSyncTaskDelayed(taskId, 5000);
+      if(prefix === 'dis') checkDispatchWarning();
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <svg className="animate-spin h-10 w-10 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <div className="text-xl font-bold text-gray-700">กำลังเชื่อมต่อฐานข้อมูล...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 pb-10 relative overflow-x-hidden">
+    function checkDispatchWarning() {
+      const prod = getEl('dis-product').value.trim();
+      const veh = getEl('dis-vehicle').value.trim();
+      const warnBox = getEl('dis-lifespan-warning');
+      const stockBox = getEl('dis-stock-warning');
       
-      {/* Toast Notification Container */}
-      <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
-        {syncTasks.map(task => (
-          <div key={task.id} className={`flex items-center gap-3 px-4 py-3 rounded shadow-lg text-sm font-bold text-white animate-slideInRight ${
-            task.status === 'syncing' ? 'bg-blue-600' : task.status === 'success' ? 'bg-green-600' : 'bg-red-600'
-          }`}>
-            {task.status === 'syncing' && <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-            {task.status === 'success' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-            {task.status === 'error' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}
-            {task.message}
-          </div>
-        ))}
-      </div>
+      if(prod && state.inventory[prod]) {
+        stockBox.classList.remove('hidden');
+        stockBox.innerText = `คงเหลือในสต๊อก: ${state.inventory[prod].balance}`;
+        stockBox.className = `text-xs font-bold mt-1 ${state.inventory[prod].balance <= 0 ? 'text-red-500' : 'text-blue-600'}`;
+      } else {
+        stockBox.classList.add('hidden');
+      }
 
-      {/* Offline Banner */}
-      {!isOnline && (
-        <div className="bg-red-600 text-white text-center py-1.5 text-xs font-bold w-full shadow-md z-50 relative flex items-center justify-center gap-2">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-          คุณออฟไลน์อยู่ (ข้อมูลจะถูกบันทึกไว้ในเครื่องก่อน)
-        </div>
-      )}
+      warnBox.classList.add('hidden');
+      const targetLifespan = state.itemSettings[prod]?.lifespan;
+      if(!prod || !veh || !targetLifespan) return;
 
-      <header className="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-            <h1 className="text-2xl font-bold">ระบบสต๊อกสินค้า</h1>
-          </div>
-          {isSyncing && isOnline && (
-             <div className="flex items-center text-xs font-medium text-blue-200 animate-pulse">
-                <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                ซิงค์ข้อมูล...
-             </div>
-          )}
-        </div>
-      </header>
+      const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่']));
+      if(past.length > 0) {
+        const diffDays = (new Date(getEl('dis-date').value) - new Date(past[0]['วันที่'])) / 86400000;
+        const ms = diffDays/30.44;
+        if(ms < parseFloat(targetLifespan)) {
+          warnBox.classList.remove('hidden');
+          warnBox.innerHTML = `<strong>คำเตือน:</strong> เพิ่งเบิกไปเมื่อ ${past[0]['วันที่']} <br/>(ผ่านไป ${ms.toFixed(1)} เดือน จาก ${targetLifespan} เดือน)`;
+        }
+      }
+    }
 
-      <main className="max-w-5xl mx-auto mt-6 px-4">
-        <div className="flex bg-white rounded-t-lg shadow-sm overflow-x-auto mb-6 border-b">
-          <button onClick={() => setActiveTab('receive')} className={`flex-1 min-w-[100px] py-4 text-center font-medium transition-colors ${activeTab === 'receive' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}>📥 รับเข้า</button>
-          <button onClick={() => setActiveTab('dispatch')} className={`flex-1 min-w-[100px] py-4 text-center font-medium transition-colors ${activeTab === 'dispatch' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}>📤 เบิกออก</button>
-          <button onClick={() => setActiveTab('summary')} className={`flex-1 min-w-[100px] py-4 text-center font-medium transition-colors ${activeTab === 'summary' ? 'bg-green-50 text-green-700 border-b-2 border-green-700' : 'text-gray-500 hover:bg-gray-50'}`}>📦 ของในคลัง</button>
-          <button onClick={() => setActiveTab('shops')} className={`flex-1 min-w-[100px] py-4 text-center font-medium transition-colors ${activeTab === 'shops' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}>🏪 ร้านค้า</button>
-          <button onClick={() => setActiveTab('history')} className={`flex-1 min-w-[100px] py-4 text-center font-medium transition-colors ${activeTab === 'history' ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-700' : 'text-gray-500 hover:bg-gray-50'}`}>🕒 ประวัติ</button>
-          <button onClick={() => setActiveTab('alerts')} className={`relative flex-1 min-w-[120px] py-4 text-center font-medium transition-colors ${activeTab === 'alerts' ? 'bg-red-50 text-red-700 border-b-2 border-red-700' : 'text-gray-500 hover:bg-gray-50'}`}>
-            ⚠️ แจ้งเตือน
-            {totalAlertCount > 0 && <span className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">{totalAlertCount}</span>}
-          </button>
-        </div>
+    // Modal Controls
+    function closeModal(id) { getEl(id).classList.add('hidden'); }
+    function openModal(id) { getEl(id).classList.remove('hidden'); }
+    
+    function showAlert(msg, type='info') {
+      getEl('alert-msg').innerText = msg;
+      getEl('alert-title').innerText = type==='error'?'❌ ผิดพลาด':(type==='warning'?'⚠️ แจ้งเตือน':'✅ สำเร็จ');
+      const btn = getEl('alert-btn');
+      btn.className = `w-full text-white font-bold py-2 rounded ${type==='error'?'bg-red-600 hover:bg-red-700':(type==='warning'?'bg-orange-500 hover:bg-orange-600':'bg-blue-600 hover:bg-blue-700')}`;
+      openModal('modal-alert');
+    }
 
-        <div className="bg-white p-6 rounded-b-lg shadow-md border border-gray-100 min-h-[500px]">
-          
-          {activeTab === 'receive' && (
-            <div className="space-y-5 animate-fadeIn max-w-2xl mx-auto">
-              <h2 className="text-xl font-bold text-gray-800 border-l-4 border-blue-500 pl-3">บันทึกรับสินค้าเข้า</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">วันที่รับสินค้า</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" /></div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">รหัสอะไหล่ (Parts)</label>
-                  <div className="flex gap-2">
-                    <input type="text" list="receive-parts-list" value={partsCode} onChange={handlePartsCodeChange} placeholder="รหัสอะไหล่" className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
-                    <button type="button" onClick={() => setIsScannerOpen(true)} className="bg-blue-100 text-blue-700 p-2.5 rounded-md hover:bg-blue-200 transition-colors" title="สแกนบาร์โค้ด">📷</button>
-                  </div>
-                  <datalist id="receive-parts-list">{existingPartsCodes.map(code => <option key={code} value={code} />)}</datalist>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสินค้า <span className="text-red-500">*</span></label>
-                  <input type="text" list="receive-products-list" value={productName} onChange={handleProductNameChange} placeholder="พิมพ์ชื่อสินค้า" className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
-                  <datalist id="receive-products-list">{existingProducts.map(p => <option key={p} value={p} />)}</datalist>
-                </div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">จำนวน <span className="text-red-500">*</span></label><input type="number" min="0" step="0.01" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">รวมเป็นเงิน (บาท)</label><input type="number" min="0" step="0.01" value={totalPrice} onChange={(e) => setTotalPrice(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" /></div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">รับจากร้านค้า / ผู้จำหน่าย</label>
-                  <input type="text" list="receive-shops-list" value={shopName} onChange={(e) => setShopName(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
-                  <datalist id="receive-shops-list">{existingShops.map(s => <option key={s} value={s} />)}</datalist>
-                </div>
-              </div>
-              <button onClick={() => handlePreSubmit('receive')} className={`w-full mt-6 text-white font-bold py-3.5 px-4 rounded-md shadow transition-colors bg-blue-600 hover:bg-blue-700`}>บันทึกรับเข้าสต๊อก</button>
-            </div>
-          )}
+    function showConfirm(msg, onYes, onNo = () => {}, txtYes='ยืนยัน', txtNo='ยกเลิก') {
+      getEl('confirm-msg').innerText = msg;
+      const bY = getEl('confirm-yes'), bN = getEl('confirm-no');
+      bY.innerText = txtYes; bY.onclick = () => { onYes(); closeModal('modal-confirm'); };
+      bN.innerText = txtNo; bN.onclick = () => { onNo(); closeModal('modal-confirm'); };
+      openModal('modal-confirm');
+    }
 
-          {activeTab === 'dispatch' && (
-            <div className="space-y-5 animate-fadeIn max-w-2xl mx-auto">
-              <h2 className="text-xl font-bold text-gray-800 border-l-4 border-orange-500 pl-3">บันทึกเบิกสินค้าออก</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">วันที่เบิกสินค้า</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" /></div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">รหัสอะไหล่ (Parts)</label>
-                  <div className="flex gap-2">
-                    <input type="text" list="dispatch-parts-list" value={partsCode} onChange={handlePartsCodeChange} placeholder="พิมพ์ หรือ สแกนบาร์โค้ด" className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" />
-                    <button type="button" onClick={() => setIsScannerOpen(true)} className="bg-orange-100 text-orange-700 p-2.5 rounded-md hover:bg-orange-200 transition-colors" title="สแกนบาร์โค้ด">📷</button>
-                  </div>
-                  <datalist id="dispatch-parts-list">{existingPartsCodes.map(code => <option key={code} value={code} />)}</datalist>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">เลือกสินค้าที่จะเบิก <span className="text-red-500">*</span></label>
-                  <input type="text" list="dispatch-products-list" value={productName} onChange={handleProductNameChange} placeholder="พิมพ์เพื่อค้นหา" className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" />
-                  <datalist id="dispatch-products-list">{existingProducts.map(p => <option key={p} value={p}>{p}</option>)}</datalist>
-                  {inventory[productName.trim()] && <p className={`text-xs font-bold mt-1 ${inventory[productName.trim()].balance <= 0 ? 'text-red-500' : 'text-blue-600'}`}>คงเหลือในสต๊อก: {inventory[productName.trim()].balance}</p>}
-                </div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">จำนวนที่เบิก <span className="text-red-500">*</span></label><input type="number" min="0" step="0.01" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" /></div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">เบิกให้รหัสรถ / หน่วยงาน</label>
-                  <input type="text" list="vehicles-list" value={selectedVehicle} onChange={(e) => setSelectedVehicle(e.target.value)} className={`w-full p-2.5 border rounded-md outline-none focus:ring-2 ${lifespanWarning ? 'border-red-400 focus:ring-red-500 bg-red-50' : 'border-gray-300 focus:ring-orange-500'}`} />
-                  <datalist id="vehicles-list">{vehicles.map((v, i) => v['รหัส'] ? <option key={i} value={v['รหัส']}>{v['ทะเบียน'] ? `(ทะเบียน: ${v['ทะเบียน']})` : ''}</option> : null)}</datalist>
-                  {lifespanWarning && (
-                    <div className="mt-2 text-sm text-red-600 bg-red-100 p-2.5 rounded border border-red-200">
-                      <strong>คำเตือน:</strong> เพิ่งเบิกไปเมื่อ {lifespanWarning.lastDate} <br/>(ผ่านไป {lifespanWarning.monthsSince} เดือน จาก {lifespanWarning.targetLifespan} เดือน)
-                    </div>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => handlePreSubmit('dispatch')} className={`w-full mt-6 text-white font-bold py-3.5 px-4 rounded-md shadow transition-colors bg-orange-600 hover:bg-orange-700`}>บันทึกเบิกออก</button>
-            </div>
-          )}
-
-          {activeTab === 'summary' && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-                <h2 className="text-xl font-bold text-gray-800 border-l-4 border-green-500 pl-3">รายการของในคลัง</h2>
-                <input 
-                  type="text" 
-                  placeholder="🔍 ค้นหาชื่อสินค้า หรือ รหัสอะไหล่..." 
-                  value={summarySearch}
-                  onChange={(e) => setSummarySearch(e.target.value)}
-                  className="p-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-64"
-                />
-              </div>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-100">
-                    <tr><th className="px-6 py-3.5 text-left text-xs font-bold text-gray-600 uppercase">ชื่อสินค้า (และรหัสอะไหล่)</th><th className="px-6 py-3.5 text-right text-sm font-bold text-blue-800 uppercase w-32">คงเหลือ</th></tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredInventoryProducts.length === 0 ? (
-                      <tr><td colSpan="2" className="px-6 py-8 text-center text-gray-500">ไม่พบสินค้าที่ค้นหา</td></tr>
-                    ) : (
-                      filteredInventoryProducts.map((product, idx) => (
-                        <tr key={idx} className="hover:bg-blue-50 cursor-pointer transition-colors" onClick={() => { 
-                          setDetailModalItem(product); 
-                          setTempLifespan(itemSettings[product]?.lifespan || ''); 
-                          setTempMinStock(itemSettings[product]?.minStock || '');
-                          setModalFilterType('all'); 
-                          setIsRenamingItem(false); 
-                        }}>
-                          <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                            <div className="flex items-center gap-2">
-                              {product} 
-                              {itemSettings[product]?.lifespan && <span className="text-xs font-normal bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">อายุ: {itemSettings[product].lifespan} เดือน</span>}
-                              {itemSettings[product]?.minStock && <span className="text-xs font-normal bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">เตือนเมื่อ &lt;= {itemSettings[product].minStock}</span>}
-                            </div>
-                            {inventory[product].partsCode && <div className="text-xs text-gray-500 mt-1 font-normal">พาร์ท: {inventory[product].partsCode}</div>}
-                          </td>
-                          <td className={`px-6 py-4 text-sm text-right font-bold bg-blue-50/30 ${inventory[product].balance <= (itemSettings[product]?.minStock || 0) ? 'text-red-600' : 'text-blue-700'}`}>
-                            {inventory[product].balance}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'shops' && (
-            <div className="space-y-6 animate-fadeIn">
-              <h2 className="text-xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3 mb-2">ประวัติสั่งซื้อรายร้านค้า</h2>
-              <select value={viewShopName} onChange={(e) => setViewShopName(e.target.value)} className="w-full md:w-1/2 p-2.5 border rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">-- เลือกร้านค้า --</option>
-                {existingShops.map((s, i) => <option key={i} value={s}>{s}</option>)}
-              </select>
-              {viewShopName && (
-                <div className="overflow-x-auto border border-gray-200 rounded-lg mt-4 shadow-sm">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-100">
-                      <tr><th className="px-4 py-3 text-left text-xs font-bold text-gray-600">วันที่</th><th className="px-4 py-3 text-left text-xs font-bold text-gray-600">สินค้า</th><th className="px-4 py-3 text-right text-xs font-bold text-gray-600">จำนวน</th><th className="px-4 py-3 text-right text-xs font-bold text-gray-600">รวมเป็นเงิน</th></tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {getShopTransactions().map((t, i) => (
-                        <tr key={i} className="hover:bg-gray-50"><td className="px-4 py-3 text-sm">{t['วันที่']}</td><td className="px-4 py-3 text-sm font-medium">{t['ชื่อสินค้า']}</td><td className="px-4 py-3 text-sm text-right font-bold">{t['จำนวน']}</td><td className="px-4 py-3 text-sm text-right text-green-600">{t['ราคารวม'] ? `${parseFloat(t['ราคารวม']).toLocaleString()} ฿` : '-'}</td></tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-indigo-50 border-t border-indigo-100">
-                      <tr>
-                        <td colSpan="4" className="px-4 py-3 text-right text-sm font-bold text-indigo-900">รวมค่าใช้จ่ายทั้งหมดจากร้านนี้: {getShopTransactions().reduce((sum, t) => sum + (parseFloat(t['ราคารวม']) || 0), 0).toLocaleString()} ฿</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'history' && (
-            <div className="space-y-6 animate-fadeIn">
-              <h2 className="text-xl font-bold text-gray-800 border-l-4 border-purple-500 pl-3 mb-2">ประวัติการทำรายการ</h2>
-              <div className="bg-purple-50 p-4 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-                <div><label className="block text-xs font-bold text-purple-800 mb-1">ประเภท</label><select value={histType} onChange={(e) => setHistType(e.target.value)} className="w-full p-2 border rounded text-sm outline-none"><option value="all">ทั้งหมด</option><option value="รับเข้า">รับเข้า</option><option value="เบิกออก">เบิกออก</option></select></div>
-                <div><label className="block text-xs font-bold text-purple-800 mb-1">อะไหล่</label><select value={histProduct} onChange={(e) => setHistProduct(e.target.value)} className="w-full p-2 border rounded text-sm outline-none bg-white"><option value="">-- ทุกรายการ --</option>{existingProducts.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-                <div><label className="block text-xs font-bold text-purple-800 mb-1">รหัสรถ</label><select value={histVehicle} onChange={(e) => setHistVehicle(e.target.value)} disabled={histType === 'รับเข้า'} className="w-full p-2 border rounded text-sm outline-none"><option value="">-- รถทุกคัน --</option>{existingDispatchedVehicles.map(code => <option key={code} value={code}>{code}</option>)}</select></div>
-                <div><label className="block text-xs font-bold text-purple-800 mb-1">ตั้งแต่วันที่</label><input type="date" value={histStartDate} onChange={(e) => setHistStartDate(e.target.value)} className="w-full p-2 border rounded text-sm outline-none" /></div>
-                <div><label className="block text-xs font-bold text-purple-800 mb-1">ถึงวันที่</label><input type="date" value={histEndDate} onChange={(e) => setHistEndDate(e.target.value)} className="w-full p-2 border rounded text-sm outline-none" /></div>
-              </div>
-
-              <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-3 py-3 text-left text-xs font-bold text-gray-600">วันที่</th>
-                      <th className="px-3 py-3 text-left text-xs font-bold text-gray-600">ประเภท</th>
-                      <th className="px-3 py-3 text-left text-xs font-bold text-gray-600">สินค้า</th>
-                      <th className="px-3 py-3 text-right text-xs font-bold text-gray-600">จำนวน</th>
-                      <th className="px-3 py-3 text-left text-xs font-bold text-gray-600">รหัสรถ/ร้าน</th>
-                      <th className="px-3 py-3 text-left text-xs font-bold text-gray-600">สถานะ</th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-gray-600">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {getFilteredTransactions().map((t, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-3 py-3 text-sm text-gray-600">{t['วันที่']}</td>
-                        <td className="px-3 py-3 text-sm"><span className={`px-2 py-1 text-xs rounded-full ${t['ประเภทรายการ'] === 'รับเข้า' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>{t['ประเภทรายการ']}</span></td>
-                        <td className="px-3 py-3 text-sm font-medium">{t['ชื่อสินค้า']} <span className="text-xs text-gray-400 block">{t['รหัสอะไหล่']}</span></td>
-                        <td className="px-3 py-3 text-sm text-right font-bold">{t['จำนวน']}</td>
-                        <td className="px-3 py-3 text-sm text-gray-500">{t['ประเภทรายการ'] === 'รับเข้า' ? t['ชื่อร้านค้า'] : t['รหัสรถ']}</td>
-                        <td className="px-3 py-3 text-xs text-gray-500 max-w-[150px] truncate">{t['สถานะการเตือน']}</td>
-                        <td className="px-3 py-3 text-center whitespace-nowrap">
-                          <button onClick={() => openEditModal(t)} className="text-blue-500 hover:text-blue-700 mx-1 bg-blue-50 p-1.5 rounded">✏️</button>
-                          <button onClick={() => handleDeleteTransaction(t)} className="text-red-500 hover:text-red-700 mx-1 bg-red-50 p-1.5 rounded">🗑️</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'alerts' && (
-            <div className="space-y-8 animate-fadeIn">
-              
-              {/* ตารางที่ 1: แจ้งเตือนของใกล้หมด */}
-              <div>
-                <h2 className="text-xl font-bold text-orange-600 border-l-4 border-orange-500 pl-3 mb-4">แจ้งเตือนอะไหล่ใกล้หมดสต๊อก</h2>
-                <div className="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
-                  <table className="min-w-full divide-y divide-orange-200">
-                    <thead className="bg-orange-50">
-                      <tr><th className="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th className="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th className="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th className="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือปัจจุบัน</th></tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {lowStockAlerts.length === 0 ? (
-                        <tr><td colSpan="4" className="px-4 py-8 text-center text-gray-500">✅ สต๊อกสินค้ายังอยู่ในเกณฑ์ปกติ</td></tr>
-                      ) : (
-                        lowStockAlerts.map((item, i) => (
-                          <tr key={i} className="hover:bg-orange-50">
-                            <td className="px-4 py-3 text-sm text-gray-500">{item.partsCode || '-'}</td>
-                            <td className="px-4 py-3 text-sm font-bold text-gray-900">{item.product}</td>
-                            <td className="px-4 py-3 text-sm text-center text-gray-600">&le; {item.threshold}</td>
-                            <td className="px-4 py-3 text-sm text-right font-bold text-red-600">{item.balance}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* ตารางที่ 2: รายการเบิกผิดปกติ (รอตรวจสอบ) */}
-              <div>
-                <h2 className="text-xl font-bold text-red-800 border-l-4 border-red-600 pl-3 mb-4">รายการเบิกผิดปกติ (รอตรวจสอบ)</h2>
-                <div className="overflow-x-auto border border-red-200 rounded-lg shadow-sm">
-                  <table className="min-w-full divide-y divide-red-200">
-                    <thead className="bg-red-50">
-                      <tr><th className="px-4 py-3 text-left text-xs font-bold text-red-800">วันที่เบิก</th><th className="px-4 py-3 text-left text-xs font-bold text-red-800">รหัสรถ</th><th className="px-4 py-3 text-left text-xs font-bold text-red-800">ชื่อสินค้า</th><th className="px-4 py-3 text-center text-xs font-bold text-red-800">รายละเอียด</th><th className="px-4 py-3 text-right text-xs font-bold text-red-800">จัดการ</th></tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {alertTransactions.length === 0 ? (
-                        <tr><td colSpan="5" className="px-4 py-12 text-center text-gray-500">✅ ไม่มีรายการแจ้งเตือนที่ต้องตรวจสอบ</td></tr>
-                      ) : (
-                        alertTransactions.map((t, i) => (
-                          <tr key={i} className="hover:bg-red-50 transition-colors">
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{t['วันที่']}</td>
-                            <td className="px-4 py-3 text-sm font-bold text-orange-600">{t['รหัสรถ']}</td>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{t['ชื่อสินค้า']} <span className="text-xs text-gray-500">({t['จำนวน']} ชิ้น)</span></td>
-                            <td className="px-4 py-3 text-center text-sm"><button onClick={() => setAlertDetailModal({ show: true, info: getAlertDetailedInfo(t), transaction: t })} className="text-blue-600 underline">ดูรายละเอียด</button></td>
-                            <td className="px-4 py-3 text-right"><button onClick={() => openClearPrompt(t)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs shadow-sm">✅ ตรวจสอบแล้ว</button></td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* --- MODAL: Barcode Scanner --- */}
-      {isScannerOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 relative">
-            <button onClick={() => setIsScannerOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl z-10">&times;</button>
-            <h3 className="text-lg font-bold mb-4 text-center">สแกนบาร์โค้ด / QR Code</h3>
-            
-            {/* กล่องแสดงกล้อง */}
-            <div id="reader" className="w-full overflow-hidden rounded-md border border-gray-300 bg-black"></div>
-            
-            <p className="text-xs text-gray-500 text-center mt-4">หันกล้องให้เห็นบาร์โค้ดชัดเจน ระบบจะสแกนอัตโนมัติ</p>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL: หน้าต่างแก้ไขข้อมูลรายบรรทัด (Edit Modal) ล็อกชื่อและพาร์ทถ้าเป็นการเบิกออก --- */}
-      {editModal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 animate-fadeIn">
-            <h3 className="text-xl font-bold text-blue-800 mb-4 border-b pb-2">✏️ แก้ไขรายการ ({editModal.currentData['ประเภทรายการ']})</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-xs font-bold text-gray-700 mb-1">วันที่</label><input type="date" value={editModal.currentData['วันที่']} onChange={(e)=>setEditModal({...editModal, currentData: {...editModal.currentData, 'วันที่': e.target.value}})} className="w-full p-2 border rounded text-sm"/></div>
-              
-              {/* อนุญาตให้แก้ รหัสอะไหล่ และ ชื่อสินค้า ได้ เฉพาะรายการรับเข้าเท่านั้น */}
-              {editModal.currentData['ประเภทรายการ'] === 'รับเข้า' ? (
-                <>
-                  <div><label className="block text-xs font-bold text-gray-700 mb-1">รหัสอะไหล่</label><input type="text" value={editModal.currentData['รหัสอะไหล่']||''} onChange={(e)=>setEditModal({...editModal, currentData: {...editModal.currentData, 'รหัสอะไหล่': e.target.value}})} className="w-full p-2 border focus:ring-2 focus:ring-blue-500 rounded text-sm"/></div>
-                  <div className="col-span-2"><label className="block text-xs font-bold text-gray-700 mb-1">ชื่อสินค้า</label><input type="text" value={editModal.currentData['ชื่อสินค้า']} onChange={(e)=>setEditModal({...editModal, currentData: {...editModal.currentData, 'ชื่อสินค้า': e.target.value}})} className="w-full p-2 border focus:ring-2 focus:ring-blue-500 rounded text-sm"/></div>
-                </>
-              ) : (
-                <>
-                  <div><label className="block text-xs font-bold text-gray-400 mb-1">รหัสอะไหล่ (ล็อก)</label><input type="text" value={editModal.currentData['รหัสอะไหล่']||''} disabled className="w-full p-2 border rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed"/></div>
-                  <div className="col-span-2"><label className="block text-xs font-bold text-gray-400 mb-1">ชื่อสินค้า (ล็อก)</label><input type="text" value={editModal.currentData['ชื่อสินค้า']} disabled className="w-full p-2 border rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed"/></div>
-                </>
-              )}
-              
-              <div><label className="block text-xs font-bold text-gray-700 mb-1">จำนวน</label><input type="number" value={editModal.currentData['จำนวน']} onChange={(e)=>setEditModal({...editModal, currentData: {...editModal.currentData, 'จำนวน': e.target.value}})} className="w-full p-2 border rounded text-sm"/></div>
-              
-              {editModal.currentData['ประเภทรายการ'] === 'รับเข้า' ? (
-                <>
-                  <div><label className="block text-xs font-bold text-gray-700 mb-1">ราคารวม</label><input type="number" value={editModal.currentData['ราคารวม']||''} onChange={(e)=>setEditModal({...editModal, currentData: {...editModal.currentData, 'ราคารวม': e.target.value}})} className="w-full p-2 border rounded text-sm"/></div>
-                  <div className="col-span-2"><label className="block text-xs font-bold text-gray-700 mb-1">ร้านค้า</label><input type="text" value={editModal.currentData['ชื่อร้านค้า']||''} onChange={(e)=>setEditModal({...editModal, currentData: {...editModal.currentData, 'ชื่อร้านค้า': e.target.value}})} className="w-full p-2 border rounded text-sm"/></div>
-                </>
-              ) : (
-                <div className="col-span-2"><label className="block text-xs font-bold text-gray-700 mb-1">รหัสรถ</label><input type="text" value={editModal.currentData['รหัสรถ']||''} onChange={(e)=>setEditModal({...editModal, currentData: {...editModal.currentData, 'รหัสรถ': e.target.value}})} className="w-full p-2 border rounded text-sm"/></div>
-              )}
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button onClick={() => setEditModal({show:false, originalData:null, currentData:{}})} className="px-4 py-2 border rounded text-gray-600 bg-gray-50 hover:bg-gray-100 font-bold">ยกเลิก</button>
-              <button onClick={executeEdit} className={`px-4 py-2 text-white rounded font-bold transition-colors bg-blue-600 hover:bg-blue-700`}>บันทึกการแก้ไข</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL: แสดงรายละเอียดประวัติสินค้ารายตัว (และส่วนเปลี่ยนชื่อสินค้าทั้งหมด) --- */}
-      {detailModalItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-fadeIn">
-            
-            <div className="p-5 border-b flex justify-between items-start bg-gray-50 rounded-t-lg">
-              <div className="w-full">
-                {!isRenamingItem ? (
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-bold text-gray-800">
-                      ประวัติรายการ: {detailModalItem} 
-                      {inventory[detailModalItem]?.partsCode && <span className="text-sm font-normal text-gray-500 ml-2">(พาร์ท: {inventory[detailModalItem].partsCode})</span>}
-                    </h3>
-                    <button onClick={() => {
-                        setRenameData({ newName: detailModalItem, newPartsCode: inventory[detailModalItem]?.partsCode || '' });
-                        setIsRenamingItem(true);
-                      }} 
-                      className="text-blue-500 hover:text-blue-700 text-sm bg-blue-50 px-2 py-1 rounded border border-blue-200" title="เปลี่ยนชื่อ/พาร์ททั้งระบบ">
-                      ✏️ เปลี่ยนชื่อสินค้าทั้งหมด
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-blue-50 p-3 rounded border border-blue-200 mb-2 w-full pr-8">
-                    <p className="text-xs font-bold text-blue-800 mb-2">เปลี่ยนชื่อสินค้าและรหัสอะไหล่ (มีผลกับประวัติที่ผ่านมาทั้งหมด)</p>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input type="text" placeholder="ชื่อสินค้า" value={renameData.newName} onChange={(e) => setRenameData({...renameData, newName: e.target.value})} className="p-2 border rounded text-sm flex-1" />
-                      <input type="text" placeholder="รหัสอะไหล่" value={renameData.newPartsCode} onChange={(e) => setRenameData({...renameData, newPartsCode: e.target.value})} className="p-2 border rounded text-sm w-full sm:w-1/3" />
-                      <button onClick={handleGlobalRename} className={`text-white px-3 py-2 rounded text-sm font-bold bg-blue-600 hover:bg-blue-700`}>บันทึก</button>
-                      <button onClick={() => setIsRenamingItem(false)} className="bg-gray-300 hover:bg-gray-400 px-3 py-2 rounded text-sm">ยกเลิก</button>
-                    </div>
-                  </div>
-                )}
-                <p className="text-sm text-blue-600 font-semibold mt-1">คงเหลือปัจจุบัน: {inventory[detailModalItem]?.balance || 0}</p>
-              </div>
-              <button onClick={() => { setDetailModalItem(null); setIsRenamingItem(false); }} className="text-gray-400 hover:text-red-500 ml-4 text-xl">❌</button>
-            </div>
-
-            <div className="p-4 border-b bg-yellow-50 flex flex-col sm:flex-row items-end gap-3">
-              <div className="flex-1 w-full">
-                <label className="block text-sm font-bold text-yellow-800 mb-1">ตั้งอายุการใช้งาน (เดือน)</label>
-                <input type="number" value={tempLifespan} onChange={(e) => setTempLifespan(e.target.value)} placeholder="เช่น 24 (ถ้าไม่มีให้เว้นว่าง)" className="w-full p-2 border border-yellow-300 rounded outline-none focus:ring-2 focus:ring-yellow-500" />
-              </div>
-              <div className="flex-1 w-full">
-                <label className="block text-sm font-bold text-orange-800 mb-1">แจ้งเตือนเมื่อเหลือน้อยกว่า (ชิ้น)</label>
-                <input type="number" value={tempMinStock} onChange={(e) => setTempMinStock(e.target.value)} placeholder="เช่น 5 (ถ้าไม่ต้องการแจ้งเตือนให้เว้นว่าง)" className="w-full p-2 border border-orange-300 rounded outline-none focus:ring-2 focus:ring-orange-500" />
-              </div>
-              <button onClick={handleSaveSettings} className={`w-full sm:w-auto text-white font-bold py-2 px-6 rounded transition-colors bg-yellow-600 hover:bg-yellow-700`}>บันทึกการตั้งค่า</button>
-            </div>
-            
-            <div className="px-6 py-3 bg-gray-50 border-b flex items-center gap-2">
-              <label className="text-sm font-bold text-gray-700">แสดงเฉพาะ:</label>
-              <select 
-                value={modalFilterType} 
-                onChange={(e) => setModalFilterType(e.target.value)}
-                className="p-1 border border-gray-300 rounded text-sm outline-none focus:border-blue-500"
-              >
-                <option value="all">ประวัติทั้งหมด</option>
-                <option value="รับเข้า">เฉพาะ รับเข้า</option>
-                <option value="เบิกออก">เฉพาะ เบิกออก</option>
-              </select>
-            </div>
-
-            <div className="p-0 overflow-y-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-white sticky top-0 shadow-sm">
-                  <tr><th className="px-4 py-3 text-left text-xs font-bold text-gray-500">วันที่</th><th className="px-4 py-3 text-left text-xs font-bold text-gray-500">ประเภท</th><th className="px-4 py-3 text-right text-xs font-bold text-gray-500">จำนวน</th><th className="px-4 py-3 text-left text-xs font-bold text-gray-500">รถ/ร้าน</th><th className="px-4 py-3 text-center text-xs font-bold text-gray-500">จัดการ</th></tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {transactions.filter(t => (t['ชื่อสินค้า']||'').trim() === (detailModalItem||'').trim())
-                    .filter(t => modalFilterType === 'all' || t['ประเภทรายการ'] === modalFilterType)
-                    .sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่'])).map((t, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-sm">{t['วันที่']}</td><td className="px-4 py-2 text-sm"><span className="bg-gray-200 px-2 py-0.5 rounded text-xs">{t['ประเภทรายการ']}</span></td><td className="px-4 py-2 text-sm text-right font-bold">{t['จำนวน']}</td><td className="px-4 py-2 text-sm">{t['ประเภทรายการ']==='รับเข้า'?t['ชื่อร้านค้า']:t['รหัสรถ']}</td>
-                      <td className="px-4 py-2 text-center">
-                        <button onClick={() => openEditModal(t)} className="mx-1 text-xl">📝</button>
-                        <button onClick={() => handleDeleteTransaction(t)} className="mx-1 text-xl text-red-500">🗑️</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="p-3 border-t bg-gray-50 text-right"><button onClick={() => { setDetailModalItem(null); setIsRenamingItem(false); }} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 font-bold rounded">ปิด</button></div>
-          </div>
-        </div>
-      )}
-
-      {/* Alert Modals */}
-      {alertData.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
-          <div className="bg-white rounded-lg p-6 text-center shadow-xl w-80"><h3 className="text-lg font-bold mb-2">{alertData.type === 'error' ? '❌ ผิดพลาด' : (alertData.type === 'warning' ? '⚠️ แจ้งเตือน' : '✅ สำเร็จ')}</h3><p className="mb-4 text-sm whitespace-pre-line">{alertData.message}</p><button onClick={() => setAlertData({ show: false, message: '', type: 'info' })} className={`w-full text-white font-bold py-2 rounded transition-colors ${alertData.type === 'error' ? 'bg-red-600 hover:bg-red-700' : (alertData.type === 'warning' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700')}`}>ตกลง</button></div>
-        </div>
-      )}
+    function addToast(id, msg, status) {
+      const c = getEl('toast-container');
+      let el = getEl(`toast-${id}`);
+      if(!el) {
+        el = document.createElement('div');
+        el.id = `toast-${id}`;
+        c.appendChild(el);
+      }
+      el.className = `flex items-center gap-3 px-4 py-3 rounded shadow-lg text-sm font-bold text-white animate-slideInRight mb-2 ${status==='syncing'?'bg-blue-600':(status==='success'?'bg-green-600':'bg-red-600')}`;
+      el.innerHTML = (status==='syncing' ? `<svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>` : (status==='success'?'✅':'❌')) + ' ' + msg;
       
-      {confirmData.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
-          <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full">
-            <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-              <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              ยืนยันการดำเนินการ
-            </h3>
-            <p className="mb-6 text-sm text-gray-600 whitespace-pre-line leading-relaxed">{confirmData.message}</p>
-            <div className="flex flex-col sm:flex-row-reverse gap-2">
-              <button onClick={confirmData.onConfirm} className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors">
-                {confirmData.confirmText || 'ยืนยัน'}
-              </button>
-              <button onClick={confirmData.onCancelAction || closeConfirm} className="w-full sm:w-auto px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-bold transition-colors">
-                {confirmData.cancelText || 'ยกเลิก'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      // Limit to 3 toasts
+      while(c.children.length > 3) c.removeChild(c.firstChild);
+      
+      if(status !== 'syncing') {
+        setTimeout(() => { if(el.parentElement) el.parentElement.removeChild(el); }, 4000);
+      }
+    }
 
-      {/* Clear Alert Modal for Manager */}
-      {clearPromptModal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-green-700 mb-4">✅ บันทึกการตรวจสอบ</h3>
-            <div className="space-y-4">
-              <div><label className="block text-sm font-bold mb-1">เหตุผล</label><textarea value={clearPromptModal.reason} onChange={(e) => setClearPromptModal({ ...clearPromptModal, reason: e.target.value })} className="w-full p-2 border rounded outline-none h-20" /></div>
-              <div><label className="block text-sm font-bold mb-1">ชื่อผู้ตรวจสอบ *</label><input type="text" value={clearPromptModal.checker} onChange={(e) => setClearPromptModal({ ...clearPromptModal, checker: e.target.value })} className="w-full p-2 border rounded outline-none" /></div>
+    // Submit Action
+    async function handleSubmit(type) {
+      const pre = type==='receive'?'rec':'dis';
+      const date = getEl(`${pre}-date`).value;
+      const parts = getEl(`${pre}-parts`).value.trim();
+      const prod = getEl(`${pre}-product`).value.trim();
+      const qtyStr = getEl(`${pre}-qty`).value;
+      
+      if(!prod || !qtyStr) return showAlert("กรุณากรอกชื่อสินค้าและจำนวนให้ครบถ้วน", 'error');
+      if(!state.isOnline) return showAlert("คุณออฟไลน์อยู่! ไม่สามารถบันทึกข้อมูลได้", 'error');
+
+      const btn = getEl(`btn-save-${pre}`);
+      if(btn.disabled) return;
+
+      if(type==='dispatch') {
+        const bal = state.inventory[prod]?.balance || 0;
+        if(parseFloat(qtyStr) > bal) return showAlert(`ไม่อนุญาตให้เบิก!\nจำนวนต้องการเบิก (${qtyStr}) มีมากกว่าคงเหลือ (${bal})`, 'error');
+        
+        const veh = getEl('dis-vehicle').value.trim();
+        const tarL = state.itemSettings[prod]?.lifespan;
+        if(veh && tarL) {
+          const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่']));
+          if(past.length > 0) {
+             const ms = ((new Date(date) - new Date(past[0]['วันที่']))/86400000)/30.44;
+             if(ms < parseFloat(tarL)) {
+                return showConfirm(`⚠️ แจ้งเตือนก่อนเบิก!\nรถรหัส ${veh} เพิ่งเบิก "${prod}" ไปเมื่อ ${past[0]['วันที่']}\nซึ่งยังไม่ครบกำหนด (${tarL} เดือน)\nแน่ใจหรือไม่ที่จะเบิกซ้ำ?`, () => doSubmit(type, true));
+             }
+          }
+        }
+      }
+      doSubmit(type, false);
+    }
+
+    async function doSubmit(type, isAlertPending) {
+      const pre = type==='receive'?'rec':'dis';
+      const btn = getEl(`btn-save-${pre}`);
+      btn.disabled = true; btn.innerText = "กำลังบันทึก...";
+      
+      let prod = getEl(`${pre}-product`).value.trim();
+      let parts = getEl(`${pre}-parts`).value.trim();
+      if(type==='dispatch' && !parts && state.inventory[prod]?.partsCode) parts = state.inventory[prod].partsCode;
+
+      const maxId = state.transactions.length > 0 ? Math.max(...state.transactions.map(t=>t._rowIndex||0)) : 1;
+      const newTx = {
+        action: 'saveTransaction', _rowIndex: maxId+1,
+        'วันที่': getEl(`${pre}-date`).value, 'ประเภทรายการ': type==='receive'?'รับเข้า':'เบิกออก',
+        'รหัสอะไหล่': parts, 'ชื่อสินค้า': prod, 'จำนวน': parseFloat(getEl(`${pre}-qty`).value),
+        'ราคารวม': type==='receive'?parseFloat(getEl('rec-price').value||0):'', 'ชื่อร้านค้า': type==='receive'?getEl('rec-shop').value:'',
+        'รหัสรถ': type==='dispatch'?getEl('dis-vehicle').value:'', 'สถานะการเตือน': isAlertPending?'รอตรวจสอบ':'',
+        'เหตุผล': '', 'ตรวจสอบโดย': ''
+      };
+
+      state.transactions.unshift(newTx);
+      computeDerivedState(); // Optimistic
+      
+      getEl(`${pre}-product`).value = ''; getEl(`${pre}-parts`).value = ''; getEl(`${pre}-qty`).value = '';
+      if(type==='receive') { getEl('rec-price').value=''; getEl('rec-shop').value=''; }
+      if(type==='dispatch') { getEl('dis-vehicle').value=''; getEl('dis-stock-warning').classList.add('hidden'); getEl('dis-lifespan-warning').classList.add('hidden'); }
+      
+      showAlert("บันทึกรายการสำเร็จ!", "success");
+      const tId = Date.now();
+      addToast(tId, "กำลังบันทึก...", "syncing");
+
+      try {
+        await fetchWithTimeout(WEB_APP_URL, { method: 'POST', body: JSON.stringify(newTx) });
+        addToast(tId, "บันทึกคลาวด์สำเร็จ", "success");
+      } catch(e) {
+        addToast(tId, "คลาวด์ออฟไลน์ (บันทึกในเครื่องแล้ว)", "error");
+      }
+      btn.disabled = false; btn.innerText = type==='receive'?"บันทึกรับเข้าสต๊อก":"บันทึกเบิกออก";
+    }
+
+    function renderAllTables() {
+      if(state.activeTab==='summary') renderSummary();
+      if(state.activeTab==='shops') renderShops();
+      if(state.activeTab==='history') renderHistory();
+      if(state.activeTab==='alerts') renderAlerts();
+      
+      const badge = getEl('alert-badge');
+      const count = state.alertData.length + state.lowStockAlerts.length;
+      if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
+      
+      localStorage.setItem('cachedTransactions_v3', JSON.stringify(state.transactions));
+    }
+
+    function renderSummary() {
+      const src = getEl('summary-search').value.toLowerCase();
+      const arr = state.existingProducts.filter(p => p.toLowerCase().includes(src) || (state.inventory[p].partsCode||'').toLowerCase().includes(src));
+      
+      const tb = getEl('summary-tbody');
+      if(arr.length===0) return tb.innerHTML = `<tr><td colspan="2" class="px-6 py-8 text-center text-gray-500">ไม่พบสินค้าที่ค้นหา</td></tr>`;
+      
+      tb.innerHTML = arr.map(p => {
+        const inv = state.inventory[p];
+        const set = state.itemSettings[p] || {};
+        const low = inv.balance <= (parseFloat(set.minStock)||0) && set.minStock ? 'text-red-600' : 'text-blue-700';
+        return `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="openDetail('${p}')">
+          <td class="px-6 py-4 text-sm font-semibold text-gray-900">
+            <div class="flex items-center gap-2">${p}
+              ${set.lifespan ? `<span class="text-xs font-normal bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">อายุ: ${set.lifespan} ด.</span>`:''}
+              ${set.minStock ? `<span class="text-xs font-normal bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">&le; ${set.minStock}</span>`:''}
             </div>
-            <div className="mt-6 flex justify-end gap-2"><button onClick={() => setClearPromptModal({ show: false, transaction: null, reason: '', checker: '' })} className="px-4 py-2 bg-gray-200 rounded font-bold">ยกเลิก</button><button onClick={executeClearAlertWithReason} className={`px-4 py-2 text-white rounded font-bold transition-colors bg-green-600 hover:bg-green-700`}>บันทึก</button></div>
-          </div>
-        </div>
-      )}
+            ${inv.partsCode ? `<div class="text-xs text-gray-500 mt-1 font-normal">พาร์ท: ${inv.partsCode}</div>`:''}
+          </td>
+          <td class="px-6 py-4 text-sm text-right font-bold bg-blue-50/30 ${low}">${inv.balance}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderShops() {
+      const shop = getEl('shops-select').value;
+      const c = getEl('shops-table-container');
+      if(!shop) return c.classList.add('hidden');
+      c.classList.remove('hidden');
       
-      {/* Alert Detail Modal */}
-      {alertDetailModal.show && alertDetailModal.info && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
-           <div className="bg-white rounded-lg p-6 max-w-sm w-full"><h3 className="text-lg font-bold text-red-600 mb-2">รายละเอียดเบิกซ้ำ</h3><div className="text-sm space-y-2"><p>รถ: <b>{alertDetailModal.transaction['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: {alertDetailModal.info.prevDateStr}</p><p>เบิกครั้งนี้: {alertDetailModal.info.currDateStr}</p><p className="text-red-500 font-bold">ผ่านไปเพียง {alertDetailModal.info.diffMonths} เดือน (เป้าหมาย {alertDetailModal.info.targetLifespan} เดือน)</p></div><button onClick={()=>setAlertDetailModal({show:false, info:null, transaction:null})} className="mt-4 w-full bg-gray-200 hover:bg-gray-300 py-2 rounded font-bold">ปิด</button></div>
-        </div>
-      )}
+      const txs = state.transactions.filter(t => t['ประเภทรายการ']==='รับเข้า' && t['ชื่อร้านค้า']===shop).sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่']));
+      getEl('shops-tbody').innerHTML = txs.map(t => `<tr class="hover:bg-gray-50"><td class="px-4 py-3 text-sm">${t['วันที่']}</td><td class="px-4 py-3 text-sm font-medium">${t['ชื่อสินค้า']}</td><td class="px-4 py-3 text-sm text-right font-bold">${t['จำนวน']}</td><td class="px-4 py-3 text-sm text-right text-green-600">${t['ราคารวม']?parseFloat(t['ราคารวม']).toLocaleString()+' ฿':'-'}</td></tr>`).join('');
+      getEl('shops-total').innerHTML = `รวมค่าใช้จ่ายทั้งหมดจากร้านนี้: ${txs.reduce((s,t)=>s+(parseFloat(t['ราคารวม'])||0),0).toLocaleString()} ฿`;
+    }
+
+    function renderHistory() {
+      const type = getEl('hist-type').value;
+      const prod = getEl('hist-product').value;
+      const veh = getEl('hist-vehicle').value;
+      const sD = getEl('hist-start').value;
+      const eD = getEl('hist-end').value;
+
+      const txs = state.transactions.filter(t => {
+        if(type!=='all' && t['ประเภทรายการ']!==type) return false;
+        if(prod && (t['ชื่อสินค้า']||'').trim()!==prod) return false;
+        if(veh && (t['รหัสรถ']||'')!==veh) return false;
+        if(sD && t['วันที่']<sD) return false;
+        if(eD && t['วันที่']>eD) return false;
+        return true;
+      }).sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่']));
+
+      getEl('history-tbody').innerHTML = txs.map(t => `<tr class="hover:bg-gray-50">
+        <td class="px-3 py-3 text-sm text-gray-600">${t['วันที่']}</td>
+        <td class="px-3 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full ${t['ประเภทรายการ']==='รับเข้า'?'bg-green-100 text-green-800':'bg-orange-100 text-orange-800'}">${t['ประเภทรายการ']}</span></td>
+        <td class="px-3 py-3 text-sm font-medium">${t['ชื่อสินค้า']} <span class="text-xs text-gray-400 block">${t['รหัสอะไหล่']||''}</span></td>
+        <td class="px-3 py-3 text-sm text-right font-bold">${t['จำนวน']}</td>
+        <td class="px-3 py-3 text-sm text-gray-500">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||'-')}</td>
+        <td class="px-3 py-3 text-xs text-gray-500 max-w-[150px] truncate">${t['สถานะการเตือน']||'-'}</td>
+        <td class="px-3 py-3 text-center whitespace-nowrap">
+           <button onclick='openEdit(${t._rowIndex})' class="text-blue-500 mx-1 bg-blue-50 p-1.5 rounded">✏️</button>
+           <button onclick='cmdDelete(${t._rowIndex})' class="text-red-500 mx-1 bg-red-50 p-1.5 rounded">🗑️</button>
+        </td>
+      </tr>`).join('');
+    }
+
+    function renderAlerts() {
+      // Low stock
+      const lb = getEl('alerts-lowstock-tbody');
+      if(state.lowStockAlerts.length===0) lb.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">✅ สต๊อกสินค้ายังอยู่ในเกณฑ์ปกติ</td></tr>`;
+      else lb.innerHTML = state.lowStockAlerts.map(a => `<tr class="hover:bg-orange-50"><td class="px-4 py-3 text-sm text-gray-500">${a.partsCode||'-'}</td><td class="px-4 py-3 text-sm font-bold text-gray-900">${a.product}</td><td class="px-4 py-3 text-sm text-center text-gray-600">&le; ${a.threshold}</td><td class="px-4 py-3 text-sm text-right font-bold text-red-600">${a.balance}</td></tr>`).join('');
+
+      // Dispatch
+      const db = getEl('alerts-dispatch-tbody');
+      if(state.alertData.length===0) db.innerHTML = `<tr><td colspan="5" class="px-4 py-12 text-center text-gray-500">✅ ไม่มีรายการแจ้งเตือนที่ต้องตรวจสอบ</td></tr>`;
+      else db.innerHTML = state.alertData.map((t,i) => `<tr class="hover:bg-red-50 transition-colors"><td class="px-4 py-3 text-sm font-medium text-gray-900">${t['วันที่']}</td><td class="px-4 py-3 text-sm font-bold text-orange-600">${t['รหัสรถ']}</td><td class="px-4 py-3 text-sm font-medium text-gray-900">${t['ชื่อสินค้า']} <span class="text-xs text-gray-500">(${t['จำนวน']} ชิ้น)</span></td><td class="px-4 py-3 text-center text-sm"><button onclick='showAlertDetail(${i})' class="text-blue-600 underline">ดูรายละเอียด</button></td><td class="px-4 py-3 text-right"><button onclick='openPrompt(${i})' class="bg-green-600 text-white px-3 py-1.5 rounded text-xs shadow-sm">✅ ตรวจสอบ</button></td></tr>`).join('');
+    }
+
+    // Detail Modal Functions
+    function openDetail(productName) {
+      state.detailItem = productName;
+      getEl('detail-title').innerText = `ประวัติรายการ: ${productName}`;
+      getEl('detail-balance').innerText = `คงเหลือ: ${state.inventory[productName].balance}`;
+      getEl('detail-balance-2').innerText = `คงเหลือ: ${state.inventory[productName].balance}`;
+      getEl('detail-lifespan').value = state.itemSettings[productName]?.lifespan || '';
+      getEl('detail-minstock').value = state.itemSettings[productName]?.minStock || '';
+      getEl('detail-filter').value = 'all';
+      closeGlobalRename();
+      renderDetailTable();
+      openModal('modal-detail');
+    }
+
+    function renderDetailTable() {
+      const f = getEl('detail-filter').value;
+      const txs = state.transactions.filter(t => (t['ชื่อสินค้า']||'').trim()===state.detailItem && (f==='all'||t['ประเภทรายการ']===f)).sort((a,b)=>new Date(b['วันที่'])-new Date(a['วันที่']));
+      getEl('detail-tbody').innerHTML = txs.map(t => `<tr class="hover:bg-gray-50"><td class="px-4 py-2 text-sm">${t['วันที่']}</td><td class="px-4 py-2 text-sm"><span class="bg-gray-200 px-2 py-0.5 rounded text-xs">${t['ประเภทรายการ']}</span></td><td class="px-4 py-2 text-sm text-right font-bold">${t['จำนวน']}</td><td class="px-4 py-2 text-sm">${t['ประเภทรายการ']==='รับเข้า'?t['ชื่อร้านค้า']:t['รหัสรถ']}</td><td class="px-4 py-2 text-center"><button onclick='openEdit(${t._rowIndex})' class="mx-1 text-xl">📝</button><button onclick='cmdDelete(${t._rowIndex})' class="mx-1 text-xl text-red-500">🗑️</button></td></tr>`).join('');
+    }
+
+    async function saveSettings() {
+      const ls = getEl('detail-lifespan').value;
+      const ms = getEl('detail-minstock').value;
+      const btn = getEl('btn-save-settings');
+      btn.innerText="รอ..."; btn.disabled=true;
       
-      <style dangerouslySetInnerHTML={{__html: `
-        .animate-fadeIn { animation: fadeIn 0.2s ease-out; } 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slideInRight { animation: slideInRight 0.3s ease-out; }
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
-      `}} />
-    </div>
-  );
-}
+      state.itemSettings[state.detailItem] = {lifespan: ls, minStock: ms};
+      computeDerivedState();
+      
+      const tId = Date.now(); addToast(tId, "กำลังบันทึกตั้งค่า", "syncing");
+      try {
+        await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'saveLifespan', 'ชื่อสินค้า':state.detailItem, 'อายุการใช้งาน':ls, 'แจ้งเตือนขั้นต่ำ':ms})});
+        addToast(tId, "บันทึกตั้งค่าสำเร็จ", "success");
+      } catch(e) { addToast(tId, "ล้มเหลว", "error"); }
+      btn.innerText="บันทึกตั้งค่า"; btn.disabled=false;
+    }
+
+    function openGlobalRename() {
+      getEl('detail-header-normal').classList.add('hidden');
+      getEl('detail-header-rename').classList.remove('hidden');
+      getEl('rename-name').value = state.detailItem;
+      getEl('rename-parts').value = state.inventory[state.detailItem]?.partsCode || '';
+    }
+    function closeGlobalRename() {
+      getEl('detail-header-rename').classList.add('hidden');
+      getEl('detail-header-normal').classList.remove('hidden');
+    }
+    async function executeGlobalRename() {
+      const nName = getEl('rename-name').value.trim();
+      const nParts = getEl('rename-parts').value.trim();
+      if(!nName) return showAlert("กรุณาระบุชื่อสินค้า", "error");
+      
+      getEl('btn-rename-save').innerText="รอ..."; getEl('btn-rename-save').disabled=true;
+      const tId = Date.now(); addToast(tId, "เปลี่ยนชื่อทั้งระบบ", "syncing");
+      
+      const old = state.detailItem;
+      state.transactions = state.transactions.map(t => (t['ชื่อสินค้า']||'').trim()===old ? {...t, 'ชื่อสินค้า':nName, 'รหัสอะไหล่':nParts} : t);
+      if(state.itemSettings[old]) { state.itemSettings[nName] = state.itemSettings[old]; delete state.itemSettings[old]; }
+      state.detailItem = nName;
+      computeDerivedState();
+      openDetail(nName);
+
+      try {
+        await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'globalRename', oldName:old, newName:nName, newPartsCode:nParts})});
+        addToast(tId, "เปลี่ยนชื่อสำเร็จ", "success");
+      } catch(e) { addToast(tId, "ล้มเหลว", "error"); }
+      getEl('btn-rename-save').innerText="บันทึก"; getEl('btn-rename-save').disabled=false;
+    }
+
+    // Edit Modal
+    function openEdit(rowIndex) {
+      const tx = state.transactions.find(t => t._rowIndex === rowIndex);
+      if(!tx) return;
+      state.editingTx = tx;
+      getEl('edit-date').value = tx['วันที่'];
+      getEl('edit-qty').value = tx['จำนวน'];
+      
+      // Dynamic rendering based on type
+      if(tx['ประเภทรายการ']==='รับเข้า') {
+        getEl('edit-wrap-parts').innerHTML = `<label class="block text-xs font-bold text-gray-700 mb-1">รหัสอะไหล่</label><input type="text" id="edit-parts" value="${tx['รหัสอะไหล่']||''}" class="w-full p-2 border focus:ring-blue-500 rounded text-sm"/>`;
+        getEl('edit-wrap-product').innerHTML = `<label class="block text-xs font-bold text-gray-700 mb-1">ชื่อสินค้า</label><input type="text" id="edit-product" value="${tx['ชื่อสินค้า']}" class="w-full p-2 border focus:ring-blue-500 rounded text-sm"/>`;
+        getEl('edit-wrap-extra').innerHTML = `
+          <div><label class="block text-xs font-bold text-gray-700 mb-1">ราคารวม</label><input type="number" id="edit-price" value="${tx['ราคารวม']||''}" class="w-full p-2 border rounded text-sm"/></div>
+          <div><label class="block text-xs font-bold text-gray-700 mb-1">ร้านค้า</label><input type="text" id="edit-shop" value="${tx['ชื่อร้านค้า']||''}" class="w-full p-2 border rounded text-sm"/></div>`;
+      } else {
+        getEl('edit-wrap-parts').innerHTML = `<label class="block text-xs font-bold text-gray-400 mb-1">รหัสอะไหล่ (ล็อก)</label><input type="text" value="${tx['รหัสอะไหล่']||''}" disabled class="w-full p-2 border rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed"/>`;
+        getEl('edit-wrap-product').innerHTML = `<label class="block text-xs font-bold text-gray-400 mb-1">ชื่อสินค้า (ล็อก)</label><input type="text" value="${tx['ชื่อสินค้า']}" disabled class="w-full p-2 border rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed"/>`;
+        getEl('edit-wrap-extra').innerHTML = `<div class="col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">รหัสรถ</label><input type="text" id="edit-veh" value="${tx['รหัสรถ']||''}" class="w-full p-2 border rounded text-sm"/></div>`;
+      }
+      openModal('modal-edit');
+    }
+
+    async function executeEdit() {
+      const tx = state.editingTx;
+      const nData = {...tx, 'วันที่':getEl('edit-date').value, 'จำนวน':parseFloat(getEl('edit-qty').value)};
+      if(tx['ประเภทรายการ']==='รับเข้า') {
+        nData['รหัสอะไหล่'] = getEl('edit-parts').value; nData['ชื่อสินค้า'] = getEl('edit-product').value;
+        nData['ราคารวม'] = getEl('edit-price').value; nData['ชื่อร้านค้า'] = getEl('edit-shop').value;
+      } else {
+        nData['รหัสรถ'] = getEl('edit-veh').value;
+      }
+      
+      const btn = getEl('btn-edit-save'); btn.disabled=true; btn.innerText="รอ...";
+      state.transactions = state.transactions.map(t => t._rowIndex===tx._rowIndex ? nData : t);
+      computeDerivedState();
+      closeModal('modal-edit');
+      
+      const tId = Date.now(); addToast(tId, "กำลังแก้ไข...", "syncing");
+      try {
+        await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'editTransaction', oldData:tx, newData:nData})});
+        addToast(tId, "แก้ไขสำเร็จ", "success");
+      } catch(e) { addToast(tId, "ล้มเหลว", "error"); }
+      btn.disabled=false; btn.innerText="บันทึกการแก้ไข";
+    }
+
+    function cmdDelete(rowIndex) {
+      const tx = state.transactions.find(t => t._rowIndex === rowIndex);
+      if(!tx) return;
+      showConfirm(`ยืนยันลบ ${tx['ชื่อสินค้า']} จำนวน ${tx['จำนวน']}?`, async () => {
+        state.transactions = state.transactions.filter(t => t._rowIndex !== tx._rowIndex);
+        computeDerivedState();
+        const tId = Date.now(); addToast(tId, "ลบข้อมูล...", "syncing");
+        try {
+          await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'deleteTransaction', oldData:tx})});
+          addToast(tId, "ลบสำเร็จ", "success");
+        } catch(e) { addToast(tId, "ลบไม่สำเร็จบนคลาวด์", "error"); }
+      });
+    }
+
+    // Alerts Action
+    function showAlertDetail(idx) {
+      const tx = state.alertData[idx];
+      const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===(tx['ชื่อสินค้า']||'').trim() && t['รหัสรถ']===tx['รหัสรถ']).sort((a,b)=>new Date(b['วันที่'])-new Date(a['วันที่']));
+      const pTx = past.find(t => t['วันที่'] < tx['วันที่']);
+      const c = getEl('alert-detail-content');
+      if(pTx) {
+        const diff = ((new Date(tx['วันที่']) - new Date(pTx['วันที่']))/86400000/30.44).toFixed(1);
+        c.innerHTML = `<p>รถ: <b>${tx['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${diff} เดือน (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
+      } else c.innerHTML = "<p>ไม่พบประวัติอ้างอิง</p>";
+      openModal('modal-alert-detail');
+    }
+
+    function openPrompt(idx) {
+      state.promptTx = state.alertData[idx];
+      getEl('prompt-reason').value = ''; getEl('prompt-checker').value = '';
+      openModal('modal-prompt');
+    }
+
+    async function executePrompt() {
+      const chk = getEl('prompt-checker').value.trim();
+      const rsn = getEl('prompt-reason').value.trim();
+      if(!chk) return showAlert("กรุณาลงชื่อผู้ตรวจสอบ", "error");
+      
+      const tx = state.promptTx;
+      getEl('btn-prompt-save').innerText="รอ..."; getEl('btn-prompt-save').disabled=true;
+      
+      state.transactions = state.transactions.map(t => {
+        if(t._rowIndex === tx._rowIndex) return {...t, 'สถานะการเตือน':'ตรวจสอบแล้ว', 'เหตุผล':rsn||'-', 'ตรวจสอบโดย':chk};
+        return t;
+      });
+      computeDerivedState();
+      closeModal('modal-prompt');
+      
+      const tId = Date.now(); addToast(tId, "ล้างแจ้งเตือน...", "syncing");
+      try {
+        await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'clearAlert', _rowIndex:tx._rowIndex, 'สถานะใหม่':'ตรวจสอบแล้ว', 'เหตุผล':rsn||'-', 'ตรวจสอบโดย':chk, 'วันที่':tx['วันที่'], 'รหัสรถ':tx['รหัสรถ'], 'ชื่อสินค้า':tx['ชื่อสินค้า'], 'จำนวน':tx['จำนวน']})});
+        addToast(tId, "ล้างสำเร็จ", "success");
+      } catch(e) { addToast(tId, "คลาวด์ล้มเหลว", "error"); }
+      getEl('btn-prompt-save').innerText="บันทึก"; getEl('btn-prompt-save').disabled=false;
+    }
+
+    // Scanner
+    function openScanner(origin) {
+      state.scannerOrigin = origin;
+      getEl('modal-scanner').classList.remove('hidden');
+      state.html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+      state.html5QrcodeScanner.render((txt) => {
+        getEl(`${state.scannerOrigin}-parts`).value = txt;
+        handlePartsChange(state.scannerOrigin);
+        closeScanner();
+        showAlert(`สแกนสำเร็จ: ${txt}`, 'success');
+      }, (err) => {});
+    }
+    function closeScanner() {
+      if(state.html5QrcodeScanner) state.html5QrcodeScanner.clear();
+      getEl('modal-scanner').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
