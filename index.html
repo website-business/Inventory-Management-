@@ -96,7 +96,7 @@
       <div id="tab-dispatch" class="hidden space-y-5 animate-fadeIn max-w-2xl mx-auto">
         <h2 class="text-xl font-bold text-gray-800 border-l-4 border-orange-500 pl-3">บันทึกเบิกสินค้าออก</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">วันที่เบิกสินค้า</label><input type="date" id="dis-date" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">วันที่เบิกสินค้า</label><input type="date" id="dis-date" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" onchange="checkDispatchWarning()" /></div>
           
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">รหัสอะไหล่ (Parts)</label>
@@ -190,7 +190,7 @@
           <div class="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
             <table class="min-w-full divide-y divide-orange-200">
               <thead class="bg-orange-50">
-                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่(หลัก)</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
               </thead>
               <tbody id="alerts-lowstock-tbody" class="bg-white divide-y divide-gray-100"></tbody>
             </table>
@@ -429,9 +429,10 @@
       window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
       window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-      const cachedTrans = localStorage.getItem('cachedTransactions_v10');
-      const cachedVehicles = localStorage.getItem('cachedVehicles_v10');
-      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v10');
+      // อัปเดต Cache Version เพื่อเคลียร์ข้อมูลที่ผิดพลาดออก
+      const cachedTrans = localStorage.getItem('cachedTransactions_v11');
+      const cachedVehicles = localStorage.getItem('cachedVehicles_v11');
+      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v11');
       
       if (cachedTrans && cachedVehicles) {
         state.transactions = JSON.parse(cachedTrans);
@@ -465,9 +466,9 @@
           }
         });
 
-        localStorage.setItem('cachedVehicles_v10', JSON.stringify(state.vehicles));
-        localStorage.setItem('cachedTransactions_v10', JSON.stringify(state.transactions));
-        localStorage.setItem('cachedItemSettings_v10', JSON.stringify(state.itemSettings));
+        localStorage.setItem('cachedVehicles_v11', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v11', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v11', JSON.stringify(state.itemSettings));
 
       } catch (e) { console.error("Fetch error", e); } 
       finally {
@@ -515,10 +516,9 @@
          });
       });
 
-      state.existingPartsCodes = Object.keys(state.barcodeMap).map(k => state.inventory[state.barcodeMap[k]].partsCode).sort();
+      state.existingPartsCodes = Object.keys(state.barcodeMap).map(k => state.inventory[state.barcodeMap[k]].mainPart).filter(Boolean).sort();
       state.existingShops = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า']).map(t => t['ชื่อร้านค้า']))].filter(Boolean);
       
-      // ดึงรหัสรถ/หน่วยงาน จากทั้งชีทมาสเตอร์(state.vehicles) และจากประวัติ
       const masterVeh = [];
       state.vehicles.forEach(v => {
           const keys = Object.keys(v);
@@ -527,7 +527,7 @@
           if (v['รหัสรถ']) masterVeh.push(String(v['รหัสรถ']).trim());
           if (v['หน่วยงาน']) masterVeh.push(String(v['หน่วยงาน']).trim());
       });
-      const txVeh = state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => String(t['รหัสรถ']).trim());
+      const txVeh = state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && (t['รหัสรถ'] || t['รหัสรถที่เบิก'])).map(t => String(t['รหัสรถ'] || t['รหัสรถที่เบิก']).trim());
       state.existingVehicles = [...new Set([...masterVeh, ...txVeh])].filter(Boolean).sort();
 
       // Alerts
@@ -547,7 +547,7 @@
           group.sort((a, b) => {
              const dDiff = new Date(a['วันที่']) - new Date(b['วันที่']);
              if(dDiff !== 0) return dDiff;
-             return a._rowIndex - b._rowIndex;
+             return (a._rowIndex || 0) - (b._rowIndex || 0); // เรียงตามเวลาเกิดก่อนเกิดหลัง
           });
           
           for (let i = 1; i < group.length; i++) {
@@ -557,7 +557,7 @@
               const targetLifespan = state.itemSettings[pName]?.lifespan;
               if (targetLifespan) {
                   const diffDays = (new Date(currTx['วันที่']) - new Date(prevTx['วันที่'])) / 86400000;
-                  if (diffDays / 30.44 < parseFloat(targetLifespan)) {
+                  if (diffDays >= 0 && diffDays / 30.44 < parseFloat(targetLifespan)) {
                       if (!(currTx['สถานะการเตือน'] || '').includes('ตรวจสอบแล้ว') && !state.alertData.some(a => a._rowIndex === currTx._rowIndex)) {
                           state.alertData.push(currTx);
                       }
@@ -573,7 +573,7 @@
         const minStr = state.itemSettings[product]?.minStock;
         if (minStr && minStr.trim() !== '') {
           const th = parseFloat(minStr);
-          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].partsCode, balance, threshold: th });
+          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].mainPart, balance, threshold: th });
         }
       });
       state.lowStockAlerts.sort((a, b) => a.balance - b.balance);
@@ -616,12 +616,10 @@
       if(inputId.includes('vehicle')) checkDispatchWarning();
     }
 
-    // แก้ไขการคลิกซ่อนกล่อง Dropdown ให้เสถียรขึ้น
     document.addEventListener('click', (e) => {
       document.querySelectorAll('.ac-container').forEach(el => {
         const inputId = el.id.replace('-ac', '');
         const inputEl = document.getElementById(inputId);
-        
         if(!el.contains(e.target) && e.target !== inputEl) {
             el.classList.add('hidden');
         }
@@ -705,15 +703,21 @@
       const targetLifespan = state.itemSettings[prod]?.lifespan;
       if(!prod || !veh || !targetLifespan) return;
 
-      const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=> {
+      const past = state.transactions.filter(t => {
+          const tVeh = (t['รหัสรถ'] || t['รหัสรถที่เบิก'] || '').trim();
+          return t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && tVeh===veh;
+      }).sort((a,b)=> {
           const dDiff = new Date(b['วันที่']) - new Date(a['วันที่']);
-          return dDiff !== 0 ? dDiff : b._rowIndex - a._rowIndex;
+          return dDiff !== 0 ? dDiff : Math.abs(b._rowIndex || 0) - Math.abs(a._rowIndex || 0); // ใหม่สุดขึ้นก่อน
       });
       
       if(past.length > 0) {
-        const diffDays = (new Date(getEl('dis-date').value) - new Date(past[0]['วันที่'])) / 86400000;
+        const curDateStr = getEl('dis-date').value;
+        const diffDays = (new Date(curDateStr) - new Date(past[0]['วันที่'])) / 86400000;
         const ms = diffDays/30.44;
-        if(ms < parseFloat(targetLifespan)) {
+        
+        // กันเหนียวกรณีวันที่ปัจจุบันน้อยกว่าวันที่ในอดีต (บั๊กวันที่ติดลบ)
+        if(diffDays >= 0 && ms < parseFloat(targetLifespan)) {
           let timeText = diffDays < 30 ? `${Math.floor(diffDays)} วัน` : `${ms.toFixed(1)} เดือน`;
           warnBox.classList.remove('hidden');
           warnBox.innerHTML = `<strong>คำเตือน:</strong> เพิ่งเบิกไปเมื่อ ${past[0]['วันที่']} <br/>(ผ่านไป ${timeText} จากเป้าหมาย ${targetLifespan} เดือน)`;
@@ -732,6 +736,7 @@
       openModal('modal-alert');
     }
 
+    // แก้ไขให้ฟังก์ชันทำงานได้ถูกต้องและไม่ Error
     function showConfirm(msg, onYes, onNo = null, txtYes='ยืนยัน', txtNo='ยกเลิก') {
       getEl('confirm-msg').innerText = msg;
       const bY = getEl('confirm-yes'), bN = getEl('confirm-no');
@@ -826,15 +831,21 @@
         
         const tarL = state.itemSettings[prod]?.lifespan;
         if(veh && tarL) {
-          const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=>{
+          const past = state.transactions.filter(t => {
+             const tVeh = (t['รหัสรถ'] || t['รหัสรถที่เบิก'] || '').trim();
+             return t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && tVeh===veh;
+          }).sort((a,b)=>{
              const dDiff = new Date(b['วันที่']) - new Date(a['วันที่']);
-             return dDiff !== 0 ? dDiff : b._rowIndex - a._rowIndex;
+             return dDiff !== 0 ? dDiff : (b._rowIndex || 0) - (a._rowIndex || 0); // ใหม่สุดขึ้นก่อน
           });
+          
           if(past.length > 0) {
              const diffDays = (new Date(date) - new Date(past[0]['วันที่']))/86400000;
              const ms = diffDays/30.44;
-             if(ms < parseFloat(targetLifespan)) {
+             if(diffDays >= 0 && ms < parseFloat(tarL)) {
                 let timeText = diffDays < 30 ? `${Math.floor(diffDays)} วัน` : `${ms.toFixed(1)} เดือน`;
+                
+                // ถ้ารายการซ้ำ ให้เด้งไป DoSubmit ได้เลย ถ้ายืนยัน
                 return showConfirm(`⚠️ แจ้งเตือนก่อนเบิก!\nรหัสรถ/หน่วยงาน ${veh} เพิ่งเบิก "${prod}" ไปเมื่อ ${past[0]['วันที่']}\nซึ่งยังไม่ครบกำหนด (${tarL} เดือน) โดยผ่านไปเพียง ${timeText}\nแน่ใจหรือไม่ที่จะเบิกซ้ำ?`, () => doSubmit(type, true));
              }
           }
@@ -850,7 +861,8 @@
       
       let prod = getEl(`${pre}-product`).value.trim();
       let parts = getEl(`${pre}-parts`).value.trim();
-      if(type==='dispatch' && !parts && state.inventory[prod]?.partsCode) parts = state.inventory[prod].partsCode;
+      // แก้ให้ใช้ mainPart แทน partsCode ที่ถูกเอาออกไปแล้ว
+      if(type==='dispatch' && !parts && state.inventory[prod]?.mainPart) parts = state.inventory[prod].mainPart;
 
       const maxId = state.transactions.length > 0 ? Math.max(...state.transactions.map(t=>t._rowIndex||0)) : 1;
       const newTx = {
@@ -892,14 +904,14 @@
       const count = state.alertData.length + state.lowStockAlerts.length;
       if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
       
-      localStorage.setItem('cachedTransactions_v10', JSON.stringify(state.transactions));
+      localStorage.setItem('cachedTransactions_v11', JSON.stringify(state.transactions));
     }
 
     function renderSummary() {
       const src = getEl('summary-search').value.toLowerCase();
       const arr = state.existingProducts.filter(p => {
          if(p.toLowerCase().includes(src)) return true;
-         const code = state.inventory[p].partsCode || '';
+         const code = state.inventory[p].mainPart || '';
          return code.toLowerCase().includes(src);
       });
       
@@ -910,7 +922,7 @@
         const inv = state.inventory[p];
         const set = state.itemSettings[p] || {};
         const low = inv.balance <= (parseFloat(set.minStock)||0) && set.minStock ? 'text-red-600' : 'text-blue-700';
-        const code = inv.partsCode;
+        const code = inv.mainPart;
         
         return `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="openDetail('${p.replace(/'/g, "\\'")}')">
           <td class="px-6 py-4 text-sm font-semibold text-gray-900">
@@ -946,7 +958,7 @@
       const txs = state.transactions.filter(t => {
         if(type!=='all' && t['ประเภทรายการ']!==type) return false;
         if(prod && (t['ชื่อสินค้า']||'').trim()!==prod) return false;
-        if(veh && (t['รหัสรถ']||'')!==veh) return false;
+        if(veh && (t['รหัสรถ']||t['รหัสรถที่เบิก']||'')!==veh) return false;
         if(sD && t['วันที่']<sD) return false;
         if(eD && t['วันที่']>eD) return false;
         return true;
@@ -957,7 +969,7 @@
         <td class="px-3 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full ${t['ประเภทรายการ']==='รับเข้า'?'bg-green-100 text-green-800':'bg-orange-100 text-orange-800'}">${t['ประเภทรายการ']}</span></td>
         <td class="px-3 py-3 text-sm font-medium">${t['ชื่อสินค้า']} <span class="text-xs text-gray-400 block">${t['รหัสอะไหล่']||''}</span></td>
         <td class="px-3 py-3 text-sm text-right font-bold">${t['จำนวน']}</td>
-        <td class="px-3 py-3 text-sm text-gray-500">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||'-')}</td>
+        <td class="px-3 py-3 text-sm text-gray-500">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||t['รหัสรถที่เบิก']||'-')}</td>
         <td class="px-3 py-3 text-xs text-gray-500 max-w-[150px] truncate">${getStatusBadgeHTML(t)}</td>
         <td class="px-3 py-3 text-center whitespace-nowrap">
            <button onclick='openEdit(${t._rowIndex})' class="text-blue-500 mx-1 bg-blue-50 p-1.5 rounded">✏️</button>
@@ -992,7 +1004,7 @@
     function renderDetailTable() {
       const f = getEl('detail-filter').value;
       const txs = state.transactions.filter(t => (t['ชื่อสินค้า']||'').trim()===state.detailItem && (f==='all'||t['ประเภทรายการ']===f)).sort((a,b)=>new Date(b['วันที่'])-new Date(a['วันที่']));
-      getEl('detail-tbody').innerHTML = txs.map(t => `<tr class="hover:bg-gray-50"><td class="px-4 py-2 text-sm">${t['วันที่']}</td><td class="px-4 py-2 text-sm"><span class="bg-gray-200 px-2 py-0.5 rounded text-xs">${t['ประเภทรายการ']}</span></td><td class="px-4 py-2 text-sm text-right font-bold">${t['จำนวน']}</td><td class="px-4 py-2 text-sm">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||'-')}</td><td class="px-4 py-2 text-sm">${getStatusBadgeHTML(t)}</td><td class="px-4 py-2 text-center"><button onclick='openEdit(${t._rowIndex})' class="mx-1 text-xl">📝</button><button onclick='cmdDelete(${t._rowIndex})' class="mx-1 text-xl text-red-500">🗑️</button></td></tr>`).join('');
+      getEl('detail-tbody').innerHTML = txs.map(t => `<tr class="hover:bg-gray-50"><td class="px-4 py-2 text-sm">${t['วันที่']}</td><td class="px-4 py-2 text-sm"><span class="bg-gray-200 px-2 py-0.5 rounded text-xs">${t['ประเภทรายการ']}</span></td><td class="px-4 py-2 text-sm text-right font-bold">${t['จำนวน']}</td><td class="px-4 py-2 text-sm">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||t['รหัสรถที่เบิก']||'-')}</td><td class="px-4 py-2 text-sm">${getStatusBadgeHTML(t)}</td><td class="px-4 py-2 text-center"><button onclick='openEdit(${t._rowIndex})' class="mx-1 text-xl">📝</button><button onclick='cmdDelete(${t._rowIndex})' class="mx-1 text-xl text-red-500">🗑️</button></td></tr>`).join('');
     }
 
     async function saveSettings() {
@@ -1104,27 +1116,29 @@
 
     function showAlertDetail(idx) {
       const tx = state.alertData[idx];
+      const txVeh = (tx['รหัสรถ'] || tx['รหัสรถที่เบิก'] || '').trim();
       
-      // ค้นหาโดยเรียงวันที่เก่าสุดลงไปหาใหม่สุด เพื่อหาลำดับที่ถูกต้อง
-      const past = state.transactions.filter(t => 
-        t['ประเภทรายการ']==='เบิกออก' && 
-        (t['ชื่อสินค้า']||'').trim()===(tx['ชื่อสินค้า']||'').trim() && 
-        (t['รหัสรถ']||'').trim()===(tx['รหัสรถ']||'').trim()
-      ).sort((a,b) => {
+      // ค้นหาโดยเรียงจากใหม่สุดไปเก่าสุด
+      const past = state.transactions.filter(t => {
+        const tVeh = (t['รหัสรถ'] || t['รหัสรถที่เบิก'] || '').trim();
+        return t['ประเภทรายการ']==='เบิกออก' && 
+               (t['ชื่อสินค้า']||'').trim()===(tx['ชื่อสินค้า']||'').trim() && 
+               tVeh === txVeh;
+      }).sort((a,b) => {
         const dDiff = new Date(b['วันที่']) - new Date(a['วันที่']);
         if (dDiff !== 0) return dDiff;
-        return b._rowIndex - a._rowIndex; // แถวที่เพิ่มทีหลัง (เลขมากกว่า) คือใหม่กว่า
+        return (b._rowIndex || 0) - (a._rowIndex || 0); // แถวที่เลขมากกว่า(ใหม่กว่า) จะอยู่บน
       });
       
       const currentIndex = past.findIndex(t => t._rowIndex === tx._rowIndex);
-      // หาอันที่เก่ากว่า 1 ระดับ
+      // ถอยไปดู 1 ตำแหน่ง (หาแถวที่เก่ากว่า)
       const pTx = currentIndex !== -1 && currentIndex + 1 < past.length ? past[currentIndex + 1] : null;
       
       const c = getEl('alert-detail-content');
       if(pTx) {
         const diffDays = ((new Date(tx['วันที่']) - new Date(pTx['วันที่']))/86400000);
         let timeText = diffDays < 30 ? `${Math.floor(diffDays)} วัน` : `${(diffDays/30.44).toFixed(1)} เดือน`;
-        c.innerHTML = `<p>รหัสรถ/หน่วยงาน: <b>${tx['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${timeText} (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
+        c.innerHTML = `<p>รหัสรถ/หน่วยงาน: <b>${txVeh}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${timeText} (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
       } else {
         c.innerHTML = "<p>ไม่พบประวัติอ้างอิง (อาจเป็นรายการเบิกครั้งแรก หรือข้อมูลอ้างอิงถูกลบไปแล้ว)</p>";
       }
@@ -1146,11 +1160,8 @@
       const tx = state.promptTx;
       getEl('btn-prompt-save').innerText="รอ..."; getEl('btn-prompt-save').disabled=true;
       
-      // อัปเดตทุกรายการที่ซ้ำในวันเดียวกันและรถคันเดียวกัน
       state.transactions = state.transactions.map(t => {
-        if(t['วันที่'] === tx['วันที่'] && t['รหัสรถ'] === tx['รหัสรถ'] && t['ชื่อสินค้า'] === tx['ชื่อสินค้า'] && t['จำนวน'] === tx['จำนวน'] && !(t['สถานะการเตือน'] || '').includes('ตรวจสอบแล้ว')) {
-            return {...t, 'สถานะการเตือน':'ตรวจสอบแล้ว', 'เหตุผล':rsn||'-', 'ตรวจสอบโดย':chk};
-        }
+        if(t._rowIndex === tx._rowIndex) return {...t, 'สถานะการเตือน':'ตรวจสอบแล้ว', 'เหตุผล':rsn||'-', 'ตรวจสอบโดย':chk};
         return t;
       });
       computeDerivedState();
