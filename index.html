@@ -190,7 +190,7 @@
           <div class="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
             <table class="min-w-full divide-y divide-orange-200">
               <thead class="bg-orange-50">
-                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่(หลัก)</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
               </thead>
               <tbody id="alerts-lowstock-tbody" class="bg-white divide-y divide-gray-100"></tbody>
             </table>
@@ -429,9 +429,9 @@
       window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
       window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-      const cachedTrans = localStorage.getItem('cachedTransactions_v9');
-      const cachedVehicles = localStorage.getItem('cachedVehicles_v9');
-      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v9');
+      const cachedTrans = localStorage.getItem('cachedTransactions_v10');
+      const cachedVehicles = localStorage.getItem('cachedVehicles_v10');
+      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v10');
       
       if (cachedTrans && cachedVehicles) {
         state.transactions = JSON.parse(cachedTrans);
@@ -465,9 +465,9 @@
           }
         });
 
-        localStorage.setItem('cachedVehicles_v9', JSON.stringify(state.vehicles));
-        localStorage.setItem('cachedTransactions_v9', JSON.stringify(state.transactions));
-        localStorage.setItem('cachedItemSettings_v9', JSON.stringify(state.itemSettings));
+        localStorage.setItem('cachedVehicles_v10', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v10', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v10', JSON.stringify(state.itemSettings));
 
       } catch (e) { console.error("Fetch error", e); } 
       finally {
@@ -491,10 +491,11 @@
         const parts = (curr['รหัสอะไหล่'] || '').trim();
 
         if (!product) return;
-        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCode: '' };
+        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCodes: new Set(), mainPart: '' };
         
-        if (type === 'รับเข้า' && parts !== '') {
-           state.inventory[product].partsCode = parts;
+        if (parts !== '') {
+           state.inventory[product].partsCodes.add(parts);
+           state.inventory[product].mainPart = parts; 
         }
 
         if (type === 'รับเข้า') {
@@ -509,15 +510,25 @@
       state.existingProducts = Object.keys(state.inventory).sort();
       
       state.existingProducts.forEach(p => {
-         const code = state.inventory[p].partsCode;
-         if (code) {
+         state.inventory[p].partsCodes.forEach(code => {
              state.barcodeMap[code.toLowerCase()] = p;
-         }
+         });
       });
 
       state.existingPartsCodes = Object.keys(state.barcodeMap).map(k => state.inventory[state.barcodeMap[k]].partsCode).sort();
       state.existingShops = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า']).map(t => t['ชื่อร้านค้า']))].filter(Boolean);
-      state.existingVehicles = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => t['รหัสรถ']))].filter(Boolean);
+      
+      // ดึงรหัสรถ/หน่วยงาน จากทั้งชีทมาสเตอร์(state.vehicles) และจากประวัติ
+      const masterVeh = [];
+      state.vehicles.forEach(v => {
+          const keys = Object.keys(v);
+          if (keys.length > 1 && v[keys[1]]) masterVeh.push(String(v[keys[1]]).trim());
+          if (v['รหัส']) masterVeh.push(String(v['รหัส']).trim());
+          if (v['รหัสรถ']) masterVeh.push(String(v['รหัสรถ']).trim());
+          if (v['หน่วยงาน']) masterVeh.push(String(v['หน่วยงาน']).trim());
+      });
+      const txVeh = state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => String(t['รหัสรถ']).trim());
+      state.existingVehicles = [...new Set([...masterVeh, ...txVeh])].filter(Boolean).sort();
 
       // Alerts
       state.alertData = [];
@@ -571,6 +582,7 @@
       renderAllTables();
     }
 
+    // --- Custom Autocomplete ---
     window.showAC = function(inputId, optionsList) {
       const input = getEl(inputId);
       const val = input.value.toLowerCase().trim();
@@ -604,9 +616,15 @@
       if(inputId.includes('vehicle')) checkDispatchWarning();
     }
 
+    // แก้ไขการคลิกซ่อนกล่อง Dropdown ให้เสถียรขึ้น
     document.addEventListener('click', (e) => {
       document.querySelectorAll('.ac-container').forEach(el => {
-        if(e.target !== el && e.target !== el.previousElementSibling) el.classList.add('hidden');
+        const inputId = el.id.replace('-ac', '');
+        const inputEl = document.getElementById(inputId);
+        
+        if(!el.contains(e.target) && e.target !== inputEl) {
+            el.classList.add('hidden');
+        }
       });
     });
 
@@ -658,8 +676,11 @@
 
     function handleProductChange(prefix) {
       const name = getEl(`${prefix}-product`).value.trim();
-      if(state.inventory[name] && state.inventory[name].partsCode) {
-        getEl(`${prefix}-parts`).value = state.inventory[name].partsCode;
+      if(state.inventory[name] && state.inventory[name].mainPart) {
+        const currentPart = getEl(`${prefix}-parts`).value.trim();
+        if(!currentPart || state.barcodeMap[currentPart.toLowerCase()] !== name) {
+            getEl(`${prefix}-parts`).value = state.inventory[name].mainPart;
+        }
       } else if (name === '') {
         getEl(`${prefix}-parts`).value = '';
       }
@@ -812,7 +833,7 @@
           if(past.length > 0) {
              const diffDays = (new Date(date) - new Date(past[0]['วันที่']))/86400000;
              const ms = diffDays/30.44;
-             if(ms < parseFloat(tarL)) {
+             if(ms < parseFloat(targetLifespan)) {
                 let timeText = diffDays < 30 ? `${Math.floor(diffDays)} วัน` : `${ms.toFixed(1)} เดือน`;
                 return showConfirm(`⚠️ แจ้งเตือนก่อนเบิก!\nรหัสรถ/หน่วยงาน ${veh} เพิ่งเบิก "${prod}" ไปเมื่อ ${past[0]['วันที่']}\nซึ่งยังไม่ครบกำหนด (${tarL} เดือน) โดยผ่านไปเพียง ${timeText}\nแน่ใจหรือไม่ที่จะเบิกซ้ำ?`, () => doSubmit(type, true));
              }
@@ -871,7 +892,7 @@
       const count = state.alertData.length + state.lowStockAlerts.length;
       if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
       
-      localStorage.setItem('cachedTransactions_v9', JSON.stringify(state.transactions));
+      localStorage.setItem('cachedTransactions_v10', JSON.stringify(state.transactions));
     }
 
     function renderSummary() {
@@ -995,7 +1016,7 @@
       getEl('detail-header-normal').classList.add('hidden');
       getEl('detail-header-rename').classList.remove('hidden');
       getEl('rename-name').value = state.detailItem;
-      getEl('rename-parts').value = state.inventory[state.detailItem]?.partsCode || '';
+      getEl('rename-parts').value = state.inventory[state.detailItem]?.mainPart || '';
     }
     function closeGlobalRename() {
       getEl('detail-header-rename').classList.add('hidden');
