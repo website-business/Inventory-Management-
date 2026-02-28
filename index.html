@@ -190,7 +190,7 @@
           <div class="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
             <table class="min-w-full divide-y divide-orange-200">
               <thead class="bg-orange-50">
-                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่(หลัก)</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
               </thead>
               <tbody id="alerts-lowstock-tbody" class="bg-white divide-y divide-gray-100"></tbody>
             </table>
@@ -265,7 +265,6 @@
         <button onclick="closeModal('modal-detail')" class="text-gray-400 hover:text-red-500 ml-4 text-xl">❌</button>
       </div>
 
-      <!-- ส่วนที่แก้ไขใหม่: แถบตั้งค่าแบบกะทัดรัด (Slim Toolbar) ประหยัดพื้นที่ -->
       <div class="px-5 py-2.5 border-b bg-yellow-50 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
           <div class="flex items-center gap-2">
@@ -279,7 +278,6 @@
         </div>
         <button id="btn-save-settings" onclick="saveSettings()" class="w-full sm:w-auto text-white text-xs font-bold py-1.5 px-5 rounded transition-colors bg-yellow-600 hover:bg-yellow-700 shadow-sm">บันทึกการตั้งค่า</button>
       </div>
-      <!-- สิ้นสุดส่วนที่แก้ไขใหม่ -->
       
       <div class="px-6 py-3 bg-gray-50 border-b flex items-center gap-2">
         <label class="text-sm font-bold text-gray-700">แสดงเฉพาะ:</label>
@@ -352,6 +350,7 @@
     let state = {
       transactions: [], vehicles: [], itemSettings: {}, inventory: {},
       existingProducts: [], existingPartsCodes: [], existingShops: [], existingVehicles: [],
+      barcodeMap: {}, 
       activeTab: 'receive',
       isOnline: navigator.onLine,
       syncTasks: [],
@@ -408,9 +407,9 @@
       window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
       window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-      const cachedTrans = localStorage.getItem('cachedTransactions_v5');
-      const cachedVehicles = localStorage.getItem('cachedVehicles_v5');
-      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v5');
+      const cachedTrans = localStorage.getItem('cachedTransactions_v6');
+      const cachedVehicles = localStorage.getItem('cachedVehicles_v6');
+      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v6');
       
       if (cachedTrans && cachedVehicles) {
         state.transactions = JSON.parse(cachedTrans);
@@ -444,9 +443,9 @@
           }
         });
 
-        localStorage.setItem('cachedVehicles_v5', JSON.stringify(state.vehicles));
-        localStorage.setItem('cachedTransactions_v5', JSON.stringify(state.transactions));
-        localStorage.setItem('cachedItemSettings_v5', JSON.stringify(state.itemSettings));
+        localStorage.setItem('cachedVehicles_v6', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v6', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v6', JSON.stringify(state.itemSettings));
 
       } catch (e) { console.error("Fetch error", e); } 
       finally {
@@ -460,6 +459,7 @@
 
     function computeDerivedState() {
       state.inventory = {};
+      state.barcodeMap = {};
       const sortedTrans = [...state.transactions].sort((a, b) => new Date(a['วันที่']) - new Date(b['วันที่']));
       
       sortedTrans.forEach(curr => {
@@ -469,11 +469,11 @@
         const parts = (curr['รหัสอะไหล่'] || '').trim();
 
         if (!product) return;
-        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCode: '' };
+        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCodes: new Set(), mainPart: '' };
         
-        // ใช้อันล่าสุดเป็นพาร์ทหลัก
-        if (type === 'รับเข้า' && parts !== '') {
-           state.inventory[product].partsCode = parts;
+        if (parts !== '') {
+           state.inventory[product].partsCodes.add(parts);
+           state.inventory[product].mainPart = parts; 
         }
 
         if (type === 'รับเข้า') {
@@ -486,7 +486,14 @@
       });
 
       state.existingProducts = Object.keys(state.inventory).sort();
-      state.existingPartsCodes = [...new Set(state.transactions.map(t => (t['รหัสอะไหล่'] || '').trim()).filter(Boolean))].sort();
+      
+      state.existingProducts.forEach(p => {
+         state.inventory[p].partsCodes.forEach(code => {
+             state.barcodeMap[code.toLowerCase()] = p;
+         });
+      });
+
+      state.existingPartsCodes = Object.keys(state.barcodeMap).sort();
       state.existingShops = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า']).map(t => t['ชื่อร้านค้า']))].filter(Boolean);
       state.existingVehicles = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => t['รหัสรถ']))].filter(Boolean);
 
@@ -528,7 +535,7 @@
         const minStr = state.itemSettings[product]?.minStock;
         if (minStr && minStr.trim() !== '') {
           const th = parseFloat(minStr);
-          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].partsCode, balance, threshold: th });
+          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].mainPart, balance, threshold: th });
         }
       });
       state.lowStockAlerts.sort((a, b) => a.balance - b.balance);
@@ -615,9 +622,7 @@
     function handlePartsChange(prefix) {
       const code = getEl(`${prefix}-parts`).value.trim();
       if(code !== '') {
-        const matchedProduct = Object.keys(state.inventory).find(p => 
-          (state.inventory[p].partsCode || '').toLowerCase() === code.toLowerCase()
-        );
+        const matchedProduct = state.barcodeMap[code.toLowerCase()];
         if(matchedProduct) {
           getEl(`${prefix}-product`).value = matchedProduct;
           if(prefix === 'dis') checkDispatchWarning();
@@ -627,8 +632,11 @@
 
     function handleProductChange(prefix) {
       const name = getEl(`${prefix}-product`).value.trim();
-      if(state.inventory[name] && state.inventory[name].partsCode) {
-        getEl(`${prefix}-parts`).value = state.inventory[name].partsCode;
+      if(state.inventory[name] && state.inventory[name].mainPart) {
+        const currentPart = getEl(`${prefix}-parts`).value.trim();
+        if(!currentPart || state.barcodeMap[currentPart.toLowerCase()] !== name) {
+            getEl(`${prefix}-parts`).value = state.inventory[name].mainPart;
+        }
       } else if (name === '') {
         getEl(`${prefix}-parts`).value = '';
       }
@@ -675,11 +683,14 @@
       openModal('modal-alert');
     }
 
-    function showConfirm(msg, onYes, onNo = () => {}, txtYes='ยืนยัน', txtNo='ยกเลิก') {
+    // ลบ closeConfirm ออกไป แล้วควบคุมการเปิด/ปิดผ่านฟังก์ชันหลักแทน
+    function showConfirm(msg, onYes, onNo = null, txtYes='ยืนยัน', txtNo='ยกเลิก') {
       getEl('confirm-msg').innerText = msg;
       const bY = getEl('confirm-yes'), bN = getEl('confirm-no');
-      bY.innerText = txtYes; bY.onclick = () => { onYes(); closeModal('modal-confirm'); };
-      bN.innerText = txtNo; bN.onclick = () => { onNo(); closeModal('modal-confirm'); };
+      bY.innerText = txtYes; 
+      bY.onclick = () => { closeModal('modal-confirm'); if(onYes) onYes(); };
+      bN.innerText = txtNo; 
+      bN.onclick = () => { closeModal('modal-confirm'); if(onNo) onNo(); };
       openModal('modal-confirm');
     }
 
@@ -713,7 +724,7 @@
 
       if(type==='dispatch') {
         const veh = getEl('dis-vehicle').value.trim();
-        if(!veh) return showAlert("กรุณาระบุ รหัสรถ/หน่วยงาน ให้ครบถ้วน", 'error'); // บังคับกรอก
+        if(!veh) return showAlert("กรุณาระบุ รหัสรถ/หน่วยงาน ให้ครบถ้วน", 'error'); 
 
         const bal = state.inventory[prod]?.balance || 0;
         if(parseFloat(qtyStr) > bal) return showAlert(`ไม่อนุญาตให้เบิก!\nจำนวนต้องการเบิก (${qtyStr}) มีมากกว่าคงเหลือ (${bal})`, 'error');
@@ -739,7 +750,7 @@
       
       let prod = getEl(`${pre}-product`).value.trim();
       let parts = getEl(`${pre}-parts`).value.trim();
-      if(type==='dispatch' && !parts && state.inventory[prod]?.partsCode) parts = state.inventory[prod].partsCode;
+      if(type==='dispatch' && !parts && state.inventory[prod]?.mainPart) parts = state.inventory[prod].mainPart;
 
       const maxId = state.transactions.length > 0 ? Math.max(...state.transactions.map(t=>t._rowIndex||0)) : 1;
       const newTx = {
@@ -781,12 +792,16 @@
       const count = state.alertData.length + state.lowStockAlerts.length;
       if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
       
-      localStorage.setItem('cachedTransactions_v5', JSON.stringify(state.transactions));
+      localStorage.setItem('cachedTransactions_v6', JSON.stringify(state.transactions));
     }
 
     function renderSummary() {
       const src = getEl('summary-search').value.toLowerCase();
-      const arr = state.existingProducts.filter(p => p.toLowerCase().includes(src) || (state.inventory[p].partsCode||'').toLowerCase().includes(src));
+      const arr = state.existingProducts.filter(p => {
+         if(p.toLowerCase().includes(src)) return true;
+         const codes = Array.from(state.inventory[p].partsCodes);
+         return codes.some(c => c.toLowerCase().includes(src));
+      });
       
       const tb = getEl('summary-tbody');
       if(arr.length===0) return tb.innerHTML = `<tr><td colspan="2" class="px-6 py-8 text-center text-gray-500">ไม่พบสินค้าที่ค้นหา</td></tr>`;
@@ -795,6 +810,7 @@
         const inv = state.inventory[p];
         const set = state.itemSettings[p] || {};
         const low = inv.balance <= (parseFloat(set.minStock)||0) && set.minStock ? 'text-red-600' : 'text-blue-700';
+        const allCodes = Array.from(inv.partsCodes).join(', ');
         
         return `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="openDetail('${p.replace(/'/g, "\\'")}')">
           <td class="px-6 py-4 text-sm font-semibold text-gray-900">
@@ -802,7 +818,7 @@
               ${set.lifespan ? `<span class="text-xs font-normal bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full whitespace-nowrap">อายุ: ${set.lifespan} ด.</span>`:''}
               ${set.minStock ? `<span class="text-xs font-normal bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full whitespace-nowrap">&le; ${set.minStock}</span>`:''}
             </div>
-            ${inv.partsCode ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${inv.partsCode}</div>`:''}
+            ${allCodes ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${allCodes}</div>`:''}
           </td>
           <td class="px-6 py-4 text-sm text-right font-bold bg-blue-50/30 ${low}">${inv.balance}</td>
         </tr>`;
@@ -893,14 +909,14 @@
         await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'saveLifespan', 'ชื่อสินค้า':state.detailItem, 'อายุการใช้งาน':ls, 'แจ้งเตือนขั้นต่ำ':ms})});
         addToast(tId, "บันทึกตั้งค่าสำเร็จ", "success");
       } catch(e) { addToast(tId, "ล้มเหลว", "error"); }
-      btn.innerText="บันทึกตั้งค่า"; btn.disabled=false;
+      btn.innerText="บันทึกการตั้งค่า"; btn.disabled=false;
     }
 
     function openGlobalRename() {
       getEl('detail-header-normal').classList.add('hidden');
       getEl('detail-header-rename').classList.remove('hidden');
       getEl('rename-name').value = state.detailItem;
-      getEl('rename-parts').value = state.inventory[state.detailItem]?.partsCode || '';
+      getEl('rename-parts').value = state.inventory[state.detailItem]?.mainPart || '';
     }
     function closeGlobalRename() {
       getEl('detail-header-rename').classList.add('hidden');
@@ -925,7 +941,7 @@
         await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'globalRename', oldName:old, newName:nName, newPartsCode:nParts})});
         addToast(tId, "เปลี่ยนชื่อสำเร็จ", "success");
       } catch(e) { addToast(tId, "ล้มเหลว", "error"); }
-      getEl('btn-rename-save').innerText="บันทึกชื่อใหม่"; getEl('btn-rename-save').disabled=false;
+      getEl('btn-rename-save').innerText="บันทึก"; getEl('btn-rename-save').disabled=false;
     }
 
     function openEdit(rowIndex) {
@@ -988,13 +1004,27 @@
 
     function showAlertDetail(idx) {
       const tx = state.alertData[idx];
-      const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===(tx['ชื่อสินค้า']||'').trim() && t['รหัสรถ']===tx['รหัสรถ']).sort((a,b)=>new Date(b['วันที่'])-new Date(a['วันที่']));
-      const pTx = past.find(t => t['วันที่'] < tx['วันที่']);
+      
+      // ค้นหาประวัติของรถและสินค้านี้ โดยอิงตามวันที่ และลำดับบรรทัด เพื่อให้รู้ว่าอันไหนมาก่อนหลัง
+      const past = state.transactions.filter(t => 
+        t['ประเภทรายการ']==='เบิกออก' && 
+        (t['ชื่อสินค้า']||'').trim()===(tx['ชื่อสินค้า']||'').trim() && 
+        (t['รหัสรถ']||'').trim()===(tx['รหัสรถ']||'').trim()
+      ).sort((a,b) => {
+        const dDiff = new Date(b['วันที่']) - new Date(a['วันที่']);
+        if (dDiff !== 0) return dDiff;
+        return b._rowIndex - a._rowIndex; // วันเดียวกัน ให้ถือว่าบรรทัดน้อยกว่า(อยู่บนกว่า)คือเก่ากว่า
+      });
+      
+      const currentIndex = past.findIndex(t => t._rowIndex === tx._rowIndex);
+      const pTx = currentIndex !== -1 && currentIndex + 1 < past.length ? past[currentIndex + 1] : null;
+      
       const c = getEl('alert-detail-content');
       if(pTx) {
         const diff = ((new Date(tx['วันที่']) - new Date(pTx['วันที่']))/86400000/30.44).toFixed(1);
         c.innerHTML = `<p>รหัสรถ/หน่วยงาน: <b>${tx['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${diff} เดือน (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
       } else c.innerHTML = "<p>ไม่พบประวัติอ้างอิง</p>";
+      
       openModal('modal-alert-detail');
     }
 
