@@ -265,6 +265,7 @@
         <button onclick="closeModal('modal-detail')" class="text-gray-400 hover:text-red-500 ml-4 text-xl">❌</button>
       </div>
 
+      <!-- แถบตั้งค่าแบบกะทัดรัด (Slim Toolbar) -->
       <div class="px-5 py-2.5 border-b bg-yellow-50 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
           <div class="flex items-center gap-2">
@@ -285,7 +286,7 @@
       </div>
       <div class="p-0 overflow-y-auto">
         <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-white sticky top-0 shadow-sm"><tr><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">วันที่</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">ประเภท</th><th class="px-4 py-3 text-right text-xs font-bold text-gray-500">จำนวน</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">รถ/หน่วยงาน/ร้าน</th><th class="px-4 py-3 text-center text-xs font-bold text-gray-500">จัดการ</th></tr></thead>
+          <thead class="bg-white sticky top-0 shadow-sm"><tr><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">วันที่</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">ประเภท</th><th class="px-4 py-3 text-right text-xs font-bold text-gray-500">จำนวน</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">รถ/หน่วยงาน/ร้าน</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">สถานะ</th><th class="px-4 py-3 text-center text-xs font-bold text-gray-500">จัดการ</th></tr></thead>
           <tbody id="detail-tbody" class="bg-white divide-y divide-gray-100"></tbody>
         </table>
       </div>
@@ -303,29 +304,50 @@
     </div>
   </div>
 
-  <!-- Prompt Modal -->
+  <!-- Prompt Modal (บันทึกการตรวจสอบ) -->
   <div id="modal-prompt" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
       <h3 class="text-xl font-bold text-green-700 mb-4">✅ บันทึกการตรวจสอบ</h3>
       <div class="space-y-4">
-        <div><label class="block text-sm font-bold mb-1">เหตุผล</label><textarea id="prompt-reason" class="w-full p-2 border rounded outline-none h-20"></textarea></div>
-        <div><label class="block text-sm font-bold mb-1">ชื่อผู้ตรวจสอบ *</label><input type="text" id="prompt-checker" class="w-full p-2 border rounded outline-none" /></div>
+        <div><label class="block text-sm font-bold mb-1">เหตุผล</label><textarea id="prompt-reason" class="w-full p-2 border rounded outline-none h-20" placeholder="เช่น ยางแตกฉุกเฉิน, ขอเบิกก่อนกำหนด..."></textarea></div>
+        <div><label class="block text-sm font-bold mb-1">ชื่อผู้ตรวจสอบ *</label><input type="text" id="prompt-checker" class="w-full p-2 border rounded outline-none" placeholder="ลงชื่อหัวหน้างาน" /></div>
       </div>
-      <div class="mt-6 flex justify-end gap-2"><button onclick="closeModal('modal-prompt')" class="px-4 py-2 bg-gray-200 rounded font-bold">ยกเลิก</button><button id="btn-prompt-save" onclick="executePrompt()" class="px-4 py-2 text-white rounded font-bold bg-green-600 hover:bg-green-700">บันทึก</button></div>
+      <div class="mt-6 flex justify-end gap-2"><button onclick="closeModal('modal-prompt')" class="px-4 py-2 bg-gray-200 rounded font-bold hover:bg-gray-300 transition-colors">ยกเลิก</button><button id="btn-prompt-save" onclick="executePrompt()" class="px-4 py-2 text-white rounded font-bold bg-green-600 hover:bg-green-700 transition-colors">บันทึกและล้างเตือน</button></div>
     </div>
   </div>
 
-  <!-- Detail Alert Modal -->
+  <!-- Detail Alert Modal (รายละเอียดก่อนตรวจสอบ) -->
   <div id="modal-alert-detail" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
     <div class="bg-white rounded-lg p-6 max-w-sm w-full">
       <h3 class="text-lg font-bold text-red-600 mb-2">รายละเอียดเบิกซ้ำ</h3>
       <div id="alert-detail-content" class="text-sm space-y-2"></div>
-      <button onclick="closeModal('modal-alert-detail')" class="mt-4 w-full bg-gray-200 hover:bg-gray-300 py-2 rounded font-bold">ปิด</button>
+      <button onclick="closeModal('modal-alert-detail')" class="mt-4 w-full bg-gray-200 hover:bg-gray-300 py-2 rounded font-bold transition-colors">ปิด</button>
+    </div>
+  </div>
+
+  <!-- Reason Display Modal (แสดงเหตุผลที่บันทึกแล้ว) -->
+  <div id="modal-reason-detail" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 animate-fadeIn">
+      <h3 class="text-lg font-bold text-green-700 mb-4 flex items-center gap-2">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        ข้อมูลการตรวจสอบ
+      </h3>
+      <div class="space-y-3 text-sm">
+        <div>
+          <span class="block font-bold text-gray-700 mb-1">เหตุผลการเบิก:</span>
+          <div id="display-reason" class="bg-gray-50 p-3 rounded border text-gray-600 whitespace-pre-line min-h-[3rem]"></div>
+        </div>
+        <div>
+          <span class="block font-bold text-gray-700 mb-1">ตรวจสอบและอนุมัติโดย:</span>
+          <div id="display-checker" class="bg-gray-50 p-2 rounded border text-gray-800 font-semibold"></div>
+        </div>
+      </div>
+      <button onclick="closeModal('modal-reason-detail')" class="mt-6 w-full bg-gray-200 hover:bg-gray-300 py-2 rounded font-bold transition-colors">ปิดหน้าต่าง</button>
     </div>
   </div>
 
   <!-- Custom Alert/Confirm -->
-  <div id="modal-alert" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
+  <div id="modal-alert" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[90] p-4">
     <div class="bg-white rounded-lg p-6 text-center shadow-xl w-80">
       <h3 id="alert-title" class="text-lg font-bold mb-2"></h3>
       <p id="alert-msg" class="mb-4 text-sm whitespace-pre-line"></p>
@@ -333,7 +355,7 @@
     </div>
   </div>
 
-  <div id="modal-confirm" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
+  <div id="modal-confirm" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[90] p-4">
     <div class="bg-white rounded-lg p-6 shadow-xl max-w-md w-full">
       <h3 class="text-lg font-bold mb-3 flex items-center gap-2">⚠️ ยืนยันการดำเนินการ</h3>
       <p id="confirm-msg" class="mb-6 text-sm text-gray-600 whitespace-pre-line leading-relaxed"></p>
@@ -407,9 +429,9 @@
       window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
       window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-      const cachedTrans = localStorage.getItem('cachedTransactions_v6');
-      const cachedVehicles = localStorage.getItem('cachedVehicles_v6');
-      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v6');
+      const cachedTrans = localStorage.getItem('cachedTransactions_v8');
+      const cachedVehicles = localStorage.getItem('cachedVehicles_v8');
+      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v8');
       
       if (cachedTrans && cachedVehicles) {
         state.transactions = JSON.parse(cachedTrans);
@@ -443,9 +465,9 @@
           }
         });
 
-        localStorage.setItem('cachedVehicles_v6', JSON.stringify(state.vehicles));
-        localStorage.setItem('cachedTransactions_v6', JSON.stringify(state.transactions));
-        localStorage.setItem('cachedItemSettings_v6', JSON.stringify(state.itemSettings));
+        localStorage.setItem('cachedVehicles_v8', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v8', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v8', JSON.stringify(state.itemSettings));
 
       } catch (e) { console.error("Fetch error", e); } 
       finally {
@@ -511,14 +533,20 @@
       });
 
       Object.values(grouped).forEach(group => {
-          group.sort((a, b) => new Date(a['วันที่']) - new Date(b['วันที่']));
+          // เรียงตามวันที่ และ Row Index เพื่อให้รู้ว่าอันไหนเกิดก่อนเกิดหลังแม้จะวันเดียวกัน
+          group.sort((a, b) => {
+             const dDiff = new Date(a['วันที่']) - new Date(b['วันที่']);
+             if(dDiff !== 0) return dDiff;
+             return a._rowIndex - b._rowIndex;
+          });
+          
           for (let i = 1; i < group.length; i++) {
               const currTx = group[i];
               const prevTx = group[i-1];
               const pName = (currTx['ชื่อสินค้า']||'').trim();
               const targetLifespan = state.itemSettings[pName]?.lifespan;
               if (targetLifespan) {
-                  const diffDays = (new Date(currTx['วันที่']) - new Date(prevTx['วันที่'])) / (1000 * 60 * 60 * 24);
+                  const diffDays = (new Date(currTx['วันที่']) - new Date(prevTx['วันที่'])) / 86400000;
                   if (diffDays / 30.44 < parseFloat(targetLifespan)) {
                       if (!(currTx['สถานะการเตือน'] || '').includes('ตรวจสอบแล้ว') && !state.alertData.some(a => a._rowIndex === currTx._rowIndex)) {
                           state.alertData.push(currTx);
@@ -622,7 +650,9 @@
     function handlePartsChange(prefix) {
       const code = getEl(`${prefix}-parts`).value.trim();
       if(code !== '') {
-        const matchedProduct = state.barcodeMap[code.toLowerCase()];
+        const matchedProduct = Object.keys(state.inventory).find(p => 
+          (state.inventory[p].partsCode || '').toLowerCase() === code.toLowerCase()
+        );
         if(matchedProduct) {
           getEl(`${prefix}-product`).value = matchedProduct;
           if(prefix === 'dis') checkDispatchWarning();
@@ -661,13 +691,18 @@
       const targetLifespan = state.itemSettings[prod]?.lifespan;
       if(!prod || !veh || !targetLifespan) return;
 
-      const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่']));
+      const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=> {
+          const dDiff = new Date(b['วันที่']) - new Date(a['วันที่']);
+          return dDiff !== 0 ? dDiff : b._rowIndex - a._rowIndex;
+      });
+      
       if(past.length > 0) {
         const diffDays = (new Date(getEl('dis-date').value) - new Date(past[0]['วันที่'])) / 86400000;
         const ms = diffDays/30.44;
         if(ms < parseFloat(targetLifespan)) {
+          let timeText = diffDays < 30 ? `${Math.floor(diffDays)} วัน` : `${ms.toFixed(1)} เดือน`;
           warnBox.classList.remove('hidden');
-          warnBox.innerHTML = `<strong>คำเตือน:</strong> เพิ่งเบิกไปเมื่อ ${past[0]['วันที่']} <br/>(ผ่านไป ${ms.toFixed(1)} เดือน จาก ${targetLifespan} เดือน)`;
+          warnBox.innerHTML = `<strong>คำเตือน:</strong> เพิ่งเบิกไปเมื่อ ${past[0]['วันที่']} <br/>(ผ่านไป ${timeText} จากเป้าหมาย ${targetLifespan} เดือน)`;
         }
       }
     }
@@ -683,15 +718,58 @@
       openModal('modal-alert');
     }
 
-    // ลบ closeConfirm ออกไป แล้วควบคุมการเปิด/ปิดผ่านฟังก์ชันหลักแทน
+    // ระบบ Confirm (อัปเดตให้เสถียร)
     function showConfirm(msg, onYes, onNo = null, txtYes='ยืนยัน', txtNo='ยกเลิก') {
       getEl('confirm-msg').innerText = msg;
       const bY = getEl('confirm-yes'), bN = getEl('confirm-no');
+      
       bY.innerText = txtYes; 
-      bY.onclick = () => { closeModal('modal-confirm'); if(onYes) onYes(); };
+      bY.onclick = () => { 
+          closeModal('modal-confirm'); 
+          if(typeof onYes === 'function') onYes(); 
+      };
+      
       bN.innerText = txtNo; 
-      bN.onclick = () => { closeModal('modal-confirm'); if(onNo) onNo(); };
+      bN.onclick = () => { 
+          closeModal('modal-confirm'); 
+          if(typeof onNo === 'function') onNo(); 
+      };
+      
       openModal('modal-confirm');
+    }
+
+    // ฟังก์ชันเปิดหน้าต่างโชว์เหตุผลที่ตรวจสอบแล้ว
+    function showReasonDetail(rowIndex) {
+      const tx = state.transactions.find(t => t._rowIndex === rowIndex);
+      if(!tx) return;
+      
+      const reason = tx['เหตุผล'] && tx['เหตุผล'] !== '-' ? tx['เหตุผล'] : 'ไม่ได้ระบุเหตุผล / หมายเหตุเพิ่มเติม';
+      const checker = tx['ตรวจสอบโดย'] && tx['ตรวจสอบโดย'] !== '-' ? tx['ตรวจสอบโดย'] : 'ไม่ระบุชื่อผู้ตรวจสอบ';
+      
+      getEl('display-reason').innerText = reason;
+      getEl('display-checker').innerText = checker;
+      
+      openModal('modal-reason-detail');
+    }
+
+    // ฟังก์ชันสร้างป้ายสถานะสำหรับตารางประวัติ (มีปุ่มให้กดถ้าตรวจสอบแล้ว)
+    function getStatusBadgeHTML(t) {
+      const statusText = (t['สถานะการเตือน'] || '').trim();
+      if (!statusText) return '-';
+      
+      if (statusText.includes('ตรวจสอบแล้ว')) {
+          return `<button onclick="showReasonDetail(${t._rowIndex})" class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-bold hover:bg-green-200 transition-colors flex items-center gap-1 w-max" title="คลิกเพื่อดูข้อมูลตรวจสอบ">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> 
+                    ตรวจสอบแล้ว
+                  </button>`;
+      }
+      if (statusText.includes('รอตรวจสอบ')) {
+          return `<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-max">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> 
+                    รอตรวจสอบ
+                  </span>`;
+      }
+      return `<span class="text-gray-500 truncate block">${statusText}</span>`;
     }
 
     function addToast(id, msg, status) {
@@ -731,11 +809,16 @@
         
         const tarL = state.itemSettings[prod]?.lifespan;
         if(veh && tarL) {
-          const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่']));
+          const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=>{
+             const dDiff = new Date(b['วันที่']) - new Date(a['วันที่']);
+             return dDiff !== 0 ? dDiff : b._rowIndex - a._rowIndex;
+          });
           if(past.length > 0) {
-             const ms = ((new Date(date) - new Date(past[0]['วันที่']))/86400000)/30.44;
+             const diffDays = (new Date(date) - new Date(past[0]['วันที่']))/86400000;
+             const ms = diffDays/30.44;
              if(ms < parseFloat(tarL)) {
-                return showConfirm(`⚠️ แจ้งเตือนก่อนเบิก!\nรหัสรถ/หน่วยงาน ${veh} เพิ่งเบิก "${prod}" ไปเมื่อ ${past[0]['วันที่']}\nซึ่งยังไม่ครบกำหนด (${tarL} เดือน)\nแน่ใจหรือไม่ที่จะเบิกซ้ำ?`, () => doSubmit(type, true));
+                let timeText = diffDays < 30 ? `${Math.floor(diffDays)} วัน` : `${ms.toFixed(1)} เดือน`;
+                return showConfirm(`⚠️ แจ้งเตือนก่อนเบิก!\nรหัสรถ/หน่วยงาน ${veh} เพิ่งเบิก "${prod}" ไปเมื่อ ${past[0]['วันที่']}\nซึ่งยังไม่ครบกำหนด (${tarL} เดือน) โดยผ่านไปเพียง ${timeText}\nแน่ใจหรือไม่ที่จะเบิกซ้ำ?`, () => doSubmit(type, true));
              }
           }
         }
@@ -792,7 +875,7 @@
       const count = state.alertData.length + state.lowStockAlerts.length;
       if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
       
-      localStorage.setItem('cachedTransactions_v6', JSON.stringify(state.transactions));
+      localStorage.setItem('cachedTransactions_v8', JSON.stringify(state.transactions));
     }
 
     function renderSummary() {
@@ -858,7 +941,7 @@
         <td class="px-3 py-3 text-sm font-medium">${t['ชื่อสินค้า']} <span class="text-xs text-gray-400 block">${t['รหัสอะไหล่']||''}</span></td>
         <td class="px-3 py-3 text-sm text-right font-bold">${t['จำนวน']}</td>
         <td class="px-3 py-3 text-sm text-gray-500">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||'-')}</td>
-        <td class="px-3 py-3 text-xs text-gray-500 max-w-[150px] truncate">${t['สถานะการเตือน']||'-'}</td>
+        <td class="px-3 py-3 text-xs text-gray-500 max-w-[150px] truncate">${getStatusBadgeHTML(t)}</td>
         <td class="px-3 py-3 text-center whitespace-nowrap">
            <button onclick='openEdit(${t._rowIndex})' class="text-blue-500 mx-1 bg-blue-50 p-1.5 rounded">✏️</button>
            <button onclick='cmdDelete(${t._rowIndex})' class="text-red-500 mx-1 bg-red-50 p-1.5 rounded">🗑️</button>
@@ -892,7 +975,7 @@
     function renderDetailTable() {
       const f = getEl('detail-filter').value;
       const txs = state.transactions.filter(t => (t['ชื่อสินค้า']||'').trim()===state.detailItem && (f==='all'||t['ประเภทรายการ']===f)).sort((a,b)=>new Date(b['วันที่'])-new Date(a['วันที่']));
-      getEl('detail-tbody').innerHTML = txs.map(t => `<tr class="hover:bg-gray-50"><td class="px-4 py-2 text-sm">${t['วันที่']}</td><td class="px-4 py-2 text-sm"><span class="bg-gray-200 px-2 py-0.5 rounded text-xs">${t['ประเภทรายการ']}</span></td><td class="px-4 py-2 text-sm text-right font-bold">${t['จำนวน']}</td><td class="px-4 py-2 text-sm">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||'-')}</td><td class="px-4 py-2 text-center"><button onclick='openEdit(${t._rowIndex})' class="mx-1 text-xl">📝</button><button onclick='cmdDelete(${t._rowIndex})' class="mx-1 text-xl text-red-500">🗑️</button></td></tr>`).join('');
+      getEl('detail-tbody').innerHTML = txs.map(t => `<tr class="hover:bg-gray-50"><td class="px-4 py-2 text-sm">${t['วันที่']}</td><td class="px-4 py-2 text-sm"><span class="bg-gray-200 px-2 py-0.5 rounded text-xs">${t['ประเภทรายการ']}</span></td><td class="px-4 py-2 text-sm text-right font-bold">${t['จำนวน']}</td><td class="px-4 py-2 text-sm">${t['ประเภทรายการ']==='รับเข้า'?(t['ชื่อร้านค้า']||'-'):(t['รหัสรถ']||'-')}</td><td class="px-4 py-2 text-sm">${getStatusBadgeHTML(t)}</td><td class="px-4 py-2 text-center"><button onclick='openEdit(${t._rowIndex})' class="mx-1 text-xl">📝</button><button onclick='cmdDelete(${t._rowIndex})' class="mx-1 text-xl text-red-500">🗑️</button></td></tr>`).join('');
     }
 
     async function saveSettings() {
@@ -1005,7 +1088,7 @@
     function showAlertDetail(idx) {
       const tx = state.alertData[idx];
       
-      // ค้นหาประวัติของรถและสินค้านี้ โดยอิงตามวันที่ และลำดับบรรทัด เพื่อให้รู้ว่าอันไหนมาก่อนหลัง
+      // ค้นหาโดยเรียงวันที่เก่าสุดลงไปหาใหม่สุด เพื่อหาลำดับที่ถูกต้อง
       const past = state.transactions.filter(t => 
         t['ประเภทรายการ']==='เบิกออก' && 
         (t['ชื่อสินค้า']||'').trim()===(tx['ชื่อสินค้า']||'').trim() && 
@@ -1013,17 +1096,21 @@
       ).sort((a,b) => {
         const dDiff = new Date(b['วันที่']) - new Date(a['วันที่']);
         if (dDiff !== 0) return dDiff;
-        return b._rowIndex - a._rowIndex; // วันเดียวกัน ให้ถือว่าบรรทัดน้อยกว่า(อยู่บนกว่า)คือเก่ากว่า
+        return b._rowIndex - a._rowIndex; // แถวที่เพิ่มทีหลัง (เลขมากกว่า) คือใหม่กว่า
       });
       
       const currentIndex = past.findIndex(t => t._rowIndex === tx._rowIndex);
+      // หาอันที่เก่ากว่า 1 ระดับ
       const pTx = currentIndex !== -1 && currentIndex + 1 < past.length ? past[currentIndex + 1] : null;
       
       const c = getEl('alert-detail-content');
       if(pTx) {
-        const diff = ((new Date(tx['วันที่']) - new Date(pTx['วันที่']))/86400000/30.44).toFixed(1);
-        c.innerHTML = `<p>รหัสรถ/หน่วยงาน: <b>${tx['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${diff} เดือน (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
-      } else c.innerHTML = "<p>ไม่พบประวัติอ้างอิง</p>";
+        const diffDays = ((new Date(tx['วันที่']) - new Date(pTx['วันที่']))/86400000);
+        let timeText = diffDays < 30 ? `${Math.floor(diffDays)} วัน` : `${(diffDays/30.44).toFixed(1)} เดือน`;
+        c.innerHTML = `<p>รหัสรถ/หน่วยงาน: <b>${tx['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${timeText} (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
+      } else {
+        c.innerHTML = "<p>ไม่พบประวัติอ้างอิง (อาจเป็นรายการเบิกครั้งแรก หรือข้อมูลอ้างอิงถูกลบไปแล้ว)</p>";
+      }
       
       openModal('modal-alert-detail');
     }
@@ -1042,8 +1129,11 @@
       const tx = state.promptTx;
       getEl('btn-prompt-save').innerText="รอ..."; getEl('btn-prompt-save').disabled=true;
       
+      // อัปเดตทุกรายการที่ซ้ำในวันเดียวกันและรถคันเดียวกัน
       state.transactions = state.transactions.map(t => {
-        if(t._rowIndex === tx._rowIndex) return {...t, 'สถานะการเตือน':'ตรวจสอบแล้ว', 'เหตุผล':rsn||'-', 'ตรวจสอบโดย':chk};
+        if(t['วันที่'] === tx['วันที่'] && t['รหัสรถ'] === tx['รหัสรถ'] && t['ชื่อสินค้า'] === tx['ชื่อสินค้า'] && t['จำนวน'] === tx['จำนวน'] && !(t['สถานะการเตือน'] || '').includes('ตรวจสอบแล้ว')) {
+            return {...t, 'สถานะการเตือน':'ตรวจสอบแล้ว', 'เหตุผล':rsn||'-', 'ตรวจสอบโดย':chk};
+        }
         return t;
       });
       computeDerivedState();
