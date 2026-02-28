@@ -190,7 +190,7 @@
           <div class="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
             <table class="min-w-full divide-y divide-orange-200">
               <thead class="bg-orange-50">
-                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่(หลัก)</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
               </thead>
               <tbody id="alerts-lowstock-tbody" class="bg-white divide-y divide-gray-100"></tbody>
             </table>
@@ -429,9 +429,9 @@
       window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
       window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-      const cachedTrans = localStorage.getItem('cachedTransactions_v8');
-      const cachedVehicles = localStorage.getItem('cachedVehicles_v8');
-      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v8');
+      const cachedTrans = localStorage.getItem('cachedTransactions_v9');
+      const cachedVehicles = localStorage.getItem('cachedVehicles_v9');
+      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v9');
       
       if (cachedTrans && cachedVehicles) {
         state.transactions = JSON.parse(cachedTrans);
@@ -465,9 +465,9 @@
           }
         });
 
-        localStorage.setItem('cachedVehicles_v8', JSON.stringify(state.vehicles));
-        localStorage.setItem('cachedTransactions_v8', JSON.stringify(state.transactions));
-        localStorage.setItem('cachedItemSettings_v8', JSON.stringify(state.itemSettings));
+        localStorage.setItem('cachedVehicles_v9', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v9', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v9', JSON.stringify(state.itemSettings));
 
       } catch (e) { console.error("Fetch error", e); } 
       finally {
@@ -491,11 +491,10 @@
         const parts = (curr['รหัสอะไหล่'] || '').trim();
 
         if (!product) return;
-        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCodes: new Set(), mainPart: '' };
+        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCode: '' };
         
-        if (parts !== '') {
-           state.inventory[product].partsCodes.add(parts);
-           state.inventory[product].mainPart = parts; 
+        if (type === 'รับเข้า' && parts !== '') {
+           state.inventory[product].partsCode = parts;
         }
 
         if (type === 'รับเข้า') {
@@ -510,12 +509,13 @@
       state.existingProducts = Object.keys(state.inventory).sort();
       
       state.existingProducts.forEach(p => {
-         state.inventory[p].partsCodes.forEach(code => {
+         const code = state.inventory[p].partsCode;
+         if (code) {
              state.barcodeMap[code.toLowerCase()] = p;
-         });
+         }
       });
 
-      state.existingPartsCodes = Object.keys(state.barcodeMap).sort();
+      state.existingPartsCodes = Object.keys(state.barcodeMap).map(k => state.inventory[state.barcodeMap[k]].partsCode).sort();
       state.existingShops = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า']).map(t => t['ชื่อร้านค้า']))].filter(Boolean);
       state.existingVehicles = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => t['รหัสรถ']))].filter(Boolean);
 
@@ -533,7 +533,6 @@
       });
 
       Object.values(grouped).forEach(group => {
-          // เรียงตามวันที่ และ Row Index เพื่อให้รู้ว่าอันไหนเกิดก่อนเกิดหลังแม้จะวันเดียวกัน
           group.sort((a, b) => {
              const dDiff = new Date(a['วันที่']) - new Date(b['วันที่']);
              if(dDiff !== 0) return dDiff;
@@ -563,7 +562,7 @@
         const minStr = state.itemSettings[product]?.minStock;
         if (minStr && minStr.trim() !== '') {
           const th = parseFloat(minStr);
-          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].mainPart, balance, threshold: th });
+          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].partsCode, balance, threshold: th });
         }
       });
       state.lowStockAlerts.sort((a, b) => a.balance - b.balance);
@@ -572,7 +571,6 @@
       renderAllTables();
     }
 
-    // --- Custom Autocomplete ---
     window.showAC = function(inputId, optionsList) {
       const input = getEl(inputId);
       const val = input.value.toLowerCase().trim();
@@ -650,9 +648,7 @@
     function handlePartsChange(prefix) {
       const code = getEl(`${prefix}-parts`).value.trim();
       if(code !== '') {
-        const matchedProduct = Object.keys(state.inventory).find(p => 
-          (state.inventory[p].partsCode || '').toLowerCase() === code.toLowerCase()
-        );
+        const matchedProduct = state.barcodeMap[code.toLowerCase()];
         if(matchedProduct) {
           getEl(`${prefix}-product`).value = matchedProduct;
           if(prefix === 'dis') checkDispatchWarning();
@@ -662,11 +658,8 @@
 
     function handleProductChange(prefix) {
       const name = getEl(`${prefix}-product`).value.trim();
-      if(state.inventory[name] && state.inventory[name].mainPart) {
-        const currentPart = getEl(`${prefix}-parts`).value.trim();
-        if(!currentPart || state.barcodeMap[currentPart.toLowerCase()] !== name) {
-            getEl(`${prefix}-parts`).value = state.inventory[name].mainPart;
-        }
+      if(state.inventory[name] && state.inventory[name].partsCode) {
+        getEl(`${prefix}-parts`).value = state.inventory[name].partsCode;
       } else if (name === '') {
         getEl(`${prefix}-parts`).value = '';
       }
@@ -718,7 +711,6 @@
       openModal('modal-alert');
     }
 
-    // ระบบ Confirm (อัปเดตให้เสถียร)
     function showConfirm(msg, onYes, onNo = null, txtYes='ยืนยัน', txtNo='ยกเลิก') {
       getEl('confirm-msg').innerText = msg;
       const bY = getEl('confirm-yes'), bN = getEl('confirm-no');
@@ -738,7 +730,6 @@
       openModal('modal-confirm');
     }
 
-    // ฟังก์ชันเปิดหน้าต่างโชว์เหตุผลที่ตรวจสอบแล้ว
     function showReasonDetail(rowIndex) {
       const tx = state.transactions.find(t => t._rowIndex === rowIndex);
       if(!tx) return;
@@ -752,7 +743,6 @@
       openModal('modal-reason-detail');
     }
 
-    // ฟังก์ชันสร้างป้ายสถานะสำหรับตารางประวัติ (มีปุ่มให้กดถ้าตรวจสอบแล้ว)
     function getStatusBadgeHTML(t) {
       const statusText = (t['สถานะการเตือน'] || '').trim();
       if (!statusText) return '-';
@@ -833,7 +823,7 @@
       
       let prod = getEl(`${pre}-product`).value.trim();
       let parts = getEl(`${pre}-parts`).value.trim();
-      if(type==='dispatch' && !parts && state.inventory[prod]?.mainPart) parts = state.inventory[prod].mainPart;
+      if(type==='dispatch' && !parts && state.inventory[prod]?.partsCode) parts = state.inventory[prod].partsCode;
 
       const maxId = state.transactions.length > 0 ? Math.max(...state.transactions.map(t=>t._rowIndex||0)) : 1;
       const newTx = {
@@ -875,15 +865,15 @@
       const count = state.alertData.length + state.lowStockAlerts.length;
       if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
       
-      localStorage.setItem('cachedTransactions_v8', JSON.stringify(state.transactions));
+      localStorage.setItem('cachedTransactions_v9', JSON.stringify(state.transactions));
     }
 
     function renderSummary() {
       const src = getEl('summary-search').value.toLowerCase();
       const arr = state.existingProducts.filter(p => {
          if(p.toLowerCase().includes(src)) return true;
-         const codes = Array.from(state.inventory[p].partsCodes);
-         return codes.some(c => c.toLowerCase().includes(src));
+         const code = state.inventory[p].partsCode || '';
+         return code.toLowerCase().includes(src);
       });
       
       const tb = getEl('summary-tbody');
@@ -893,7 +883,7 @@
         const inv = state.inventory[p];
         const set = state.itemSettings[p] || {};
         const low = inv.balance <= (parseFloat(set.minStock)||0) && set.minStock ? 'text-red-600' : 'text-blue-700';
-        const allCodes = Array.from(inv.partsCodes).join(', ');
+        const code = inv.partsCode;
         
         return `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="openDetail('${p.replace(/'/g, "\\'")}')">
           <td class="px-6 py-4 text-sm font-semibold text-gray-900">
@@ -901,7 +891,7 @@
               ${set.lifespan ? `<span class="text-xs font-normal bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full whitespace-nowrap">อายุ: ${set.lifespan} ด.</span>`:''}
               ${set.minStock ? `<span class="text-xs font-normal bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full whitespace-nowrap">&le; ${set.minStock}</span>`:''}
             </div>
-            ${allCodes ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${allCodes}</div>`:''}
+            ${code ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${code}</div>`:''}
           </td>
           <td class="px-6 py-4 text-sm text-right font-bold bg-blue-50/30 ${low}">${inv.balance}</td>
         </tr>`;
@@ -999,7 +989,7 @@
       getEl('detail-header-normal').classList.add('hidden');
       getEl('detail-header-rename').classList.remove('hidden');
       getEl('rename-name').value = state.detailItem;
-      getEl('rename-parts').value = state.inventory[state.detailItem]?.mainPart || '';
+      getEl('rename-parts').value = state.inventory[state.detailItem]?.partsCode || '';
     }
     function closeGlobalRename() {
       getEl('detail-header-rename').classList.add('hidden');
