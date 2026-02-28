@@ -265,13 +265,21 @@
         <button onclick="closeModal('modal-detail')" class="text-gray-400 hover:text-red-500 ml-4 text-xl">❌</button>
       </div>
 
-      <div class="p-4 border-b bg-yellow-50 grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-        <div class="w-full"><label class="block text-sm font-bold text-yellow-800 mb-1">ตั้งอายุ (เดือน)</label><input type="number" id="detail-lifespan" class="w-full p-2 border border-yellow-300 rounded outline-none focus:ring-2 focus:ring-yellow-500" /></div>
-        <div class="w-full"><label class="block text-sm font-bold text-orange-800 mb-1">เตือนเมื่อน้อยกว่า (ชิ้น)</label><input type="number" id="detail-minstock" class="w-full p-2 border border-orange-300 rounded outline-none focus:ring-2 focus:ring-orange-500" /></div>
-        <div class="col-span-1 sm:col-span-2 text-right">
-            <button id="btn-save-settings" onclick="saveSettings()" class="w-full sm:w-auto text-white font-bold py-2 px-6 rounded transition-colors bg-yellow-600 hover:bg-yellow-700 mt-2">บันทึกตั้งค่า</button>
+      <!-- ส่วนที่แก้ไขใหม่: แถบตั้งค่าแบบกะทัดรัด (Slim Toolbar) ประหยัดพื้นที่ -->
+      <div class="px-5 py-2.5 border-b bg-yellow-50 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+        <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-yellow-800">อายุใช้งาน (เดือน):</label>
+            <input type="number" id="detail-lifespan" placeholder="-" class="w-16 p-1 text-sm border border-yellow-300 rounded outline-none focus:ring-1 focus:ring-yellow-500 text-center shadow-inner" />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-orange-800">เตือนสต๊อก <span class="hidden sm:inline">เมื่อน้อยกว่า</span>:</label>
+            <input type="number" id="detail-minstock" placeholder="-" class="w-16 p-1 text-sm border border-orange-300 rounded outline-none focus:ring-1 focus:ring-orange-500 text-center shadow-inner" />
+          </div>
         </div>
+        <button id="btn-save-settings" onclick="saveSettings()" class="w-full sm:w-auto text-white text-xs font-bold py-1.5 px-5 rounded transition-colors bg-yellow-600 hover:bg-yellow-700 shadow-sm">บันทึกการตั้งค่า</button>
       </div>
+      <!-- สิ้นสุดส่วนที่แก้ไขใหม่ -->
       
       <div class="px-6 py-3 bg-gray-50 border-b flex items-center gap-2">
         <label class="text-sm font-bold text-gray-700">แสดงเฉพาะ:</label>
