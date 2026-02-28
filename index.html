@@ -137,7 +137,7 @@
         <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100">
-              <tr><th class="px-6 py-3.5 text-left text-xs font-bold text-gray-600 uppercase">ชื่อสินค้า (และรหัสอะไหล่ทั้งหมด)</th><th class="px-6 py-3.5 text-right text-sm font-bold text-blue-800 uppercase w-32">คงเหลือ</th></tr>
+              <tr><th class="px-6 py-3.5 text-left text-xs font-bold text-gray-600 uppercase">ชื่อสินค้า (และรหัสอะไหล่)</th><th class="px-6 py-3.5 text-right text-sm font-bold text-blue-800 uppercase w-32">คงเหลือ</th></tr>
             </thead>
             <tbody id="summary-tbody" class="bg-white divide-y divide-gray-200"></tbody>
           </table>
@@ -190,7 +190,7 @@
           <div class="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
             <table class="min-w-full divide-y divide-orange-200">
               <thead class="bg-orange-50">
-                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่(หลัก)</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
               </thead>
               <tbody id="alerts-lowstock-tbody" class="bg-white divide-y divide-gray-100"></tbody>
             </table>
@@ -246,20 +246,30 @@
         <div class="w-full" id="detail-header-normal">
           <div class="flex items-center gap-3">
             <h3 class="text-xl font-bold text-gray-800" id="detail-title"></h3>
-            <button onclick="openGlobalRename()" class="text-blue-500 hover:text-blue-700 text-sm bg-blue-50 px-2 py-1 rounded border border-blue-200">✏️ เปลี่ยนชื่อสินค้าทั้งหมด</button>
+            <button onclick="openGlobalRename()" class="text-blue-500 hover:text-blue-700 text-sm bg-blue-50 px-2 py-1 rounded border border-blue-200">✏️ แก้ไขชื่อและพาร์ทอะไหล่</button>
           </div>
           <p class="text-sm text-blue-600 font-semibold mt-1" id="detail-balance"></p>
         </div>
+        
+        <!-- ส่วนแก้ไขชื่อและพาร์ทแบบใหม่ แยกช่อง -->
         <div class="w-full pr-8 hidden" id="detail-header-rename">
-          <div class="bg-blue-50 p-3 rounded border border-blue-200 mb-2">
-            <p class="text-xs font-bold text-blue-800 mb-2">เปลี่ยนชื่อสินค้า (มีผลกับประวัติที่ผ่านมาทั้งหมด)</p>
-            <div class="flex flex-col sm:flex-row gap-2">
-              <input type="text" id="rename-name" placeholder="พิมพ์ชื่อสินค้าใหม่" class="p-2 border rounded text-sm flex-1" />
-              <button id="btn-rename-save" onclick="executeGlobalRename()" class="text-white px-3 py-2 rounded text-sm font-bold bg-blue-600 hover:bg-blue-700">บันทึกชื่อใหม่</button>
-              <button onclick="closeGlobalRename()" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 rounded text-sm">ยกเลิก</button>
+          <div class="bg-blue-50 p-4 rounded border border-blue-200 mb-2">
+            <p class="text-xs font-bold text-blue-800 mb-3">เปลี่ยนชื่อสินค้าและรหัสอะไหล่ (ระบบจะอัปเดตประวัติเก่าให้ตรงกับพาร์ทใหม่ทั้งหมด)</p>
+            <div class="flex flex-col gap-3">
+              <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <label class="text-sm font-bold text-gray-700 sm:w-20">ชื่อสินค้า:</label>
+                <input type="text" id="rename-name" placeholder="พิมพ์ชื่อสินค้าใหม่" class="p-2 border rounded text-sm flex-1 w-full" />
+              </div>
+              
+              <!-- กล่องใส่ช่องพาร์ทอะไหล่แบบไดนามิก -->
+              <div id="rename-parts-container" class="flex flex-col gap-2"></div>
+              
+              <div class="flex justify-end gap-2 mt-2 border-t border-blue-100 pt-3">
+                <button onclick="closeGlobalRename()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded text-sm font-bold">ยกเลิก</button>
+                <button id="btn-rename-save" onclick="executeGlobalRename()" class="text-white px-4 py-2 rounded text-sm font-bold bg-blue-600 hover:bg-blue-700">บันทึกการเปลี่ยนแปลง</button>
+              </div>
             </div>
           </div>
-          <p class="text-sm text-blue-600 font-semibold mt-1" id="detail-balance-2"></p>
         </div>
         <button onclick="closeModal('modal-detail')" class="text-gray-400 hover:text-red-500 ml-4 text-xl">❌</button>
       </div>
@@ -428,9 +438,9 @@
       window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
       window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-      const cachedTrans = localStorage.getItem('cachedTransactions_v12');
-      const cachedVehicles = localStorage.getItem('cachedVehicles_v12');
-      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v12');
+      const cachedTrans = localStorage.getItem('cachedTransactions_v14');
+      const cachedVehicles = localStorage.getItem('cachedVehicles_v14');
+      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v14');
       
       if (cachedTrans && cachedVehicles) {
         state.transactions = JSON.parse(cachedTrans);
@@ -464,9 +474,9 @@
           }
         });
 
-        localStorage.setItem('cachedVehicles_v12', JSON.stringify(state.vehicles));
-        localStorage.setItem('cachedTransactions_v12', JSON.stringify(state.transactions));
-        localStorage.setItem('cachedItemSettings_v12', JSON.stringify(state.itemSettings));
+        localStorage.setItem('cachedVehicles_v14', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v14', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v14', JSON.stringify(state.itemSettings));
 
       } catch (e) { console.error("Fetch error", e); } 
       finally {
@@ -902,15 +912,15 @@
       const count = state.alertData.length + state.lowStockAlerts.length;
       if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
       
-      localStorage.setItem('cachedTransactions_v12', JSON.stringify(state.transactions));
+      localStorage.setItem('cachedTransactions_v14', JSON.stringify(state.transactions));
     }
 
     function renderSummary() {
       const src = getEl('summary-search').value.toLowerCase();
       const arr = state.existingProducts.filter(p => {
          if(p.toLowerCase().includes(src)) return true;
-         const code = state.inventory[p].mainPart || '';
-         return code.toLowerCase().includes(src);
+         const codes = Array.from(state.inventory[p].partsCodes);
+         return codes.some(c => c.toLowerCase().includes(src));
       });
       
       const tb = getEl('summary-tbody');
@@ -920,7 +930,7 @@
         const inv = state.inventory[p];
         const set = state.itemSettings[p] || {};
         const low = inv.balance <= (parseFloat(set.minStock)||0) && set.minStock ? 'text-red-600' : 'text-blue-700';
-        const code = inv.mainPart;
+        const allCodes = Array.from(inv.partsCodes).join(', ');
         
         return `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="openDetail('${p.replace(/'/g, "\\'")}')">
           <td class="px-6 py-4 text-sm font-semibold text-gray-900">
@@ -928,7 +938,7 @@
               ${set.lifespan ? `<span class="text-xs font-normal bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full whitespace-nowrap">อายุ: ${set.lifespan} ด.</span>`:''}
               ${set.minStock ? `<span class="text-xs font-normal bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full whitespace-nowrap">&le; ${set.minStock}</span>`:''}
             </div>
-            ${code ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${code}</div>`:''}
+            ${allCodes ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${allCodes}</div>`:''}
           </td>
           <td class="px-6 py-4 text-sm text-right font-bold bg-blue-50/30 ${low}">${inv.balance}</td>
         </tr>`;
@@ -987,11 +997,17 @@
     }
 
     function openDetail(productName) {
+      if(!productName) return;
       state.detailItem = productName;
-      getEl('detail-title').innerText = `ประวัติรายการ: ${productName}`;
-      getEl('detail-balance').innerText = `คงเหลือ: ${state.inventory[productName].balance}`;
-      const bal2 = getEl('detail-balance-2');
-      if (bal2) bal2.innerText = `คงเหลือ: ${state.inventory[productName].balance}`;
+      const elTitle = getEl('detail-title');
+      if(elTitle) elTitle.innerText = `ประวัติรายการ: ${productName}`;
+      
+      const elBal = getEl('detail-balance');
+      if(elBal) elBal.innerText = `คงเหลือ: ${state.inventory[productName].balance}`;
+      
+      const elBal2 = getEl('detail-balance-2');
+      if(elBal2) elBal2.innerText = `คงเหลือ: ${state.inventory[productName].balance}`;
+      
       getEl('detail-lifespan').value = state.itemSettings[productName]?.lifespan || '';
       getEl('detail-minstock').value = state.itemSettings[productName]?.minStock || '';
       getEl('detail-filter').value = 'all';
@@ -1027,33 +1043,78 @@
       getEl('detail-header-normal').classList.add('hidden');
       getEl('detail-header-rename').classList.remove('hidden');
       getEl('rename-name').value = state.detailItem;
+      
+      const partsContainer = getEl('rename-parts-container');
+      const codes = Array.from(state.inventory[state.detailItem]?.partsCodes || []).filter(Boolean);
+      
+      if (codes.length === 0) {
+         partsContainer.innerHTML = `
+            <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+               <label class="text-sm font-bold text-gray-700 sm:w-20">พาร์ทอะไหล่:</label>
+               <input type="text" class="rename-part-input p-2 border rounded text-sm flex-1 w-full" data-old="" placeholder="เพิ่มรหัสอะไหล่ใหม่" />
+            </div>`;
+      } else {
+         partsContainer.innerHTML = codes.map((code, idx) => `
+            <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+               <label class="text-sm font-bold text-gray-700 sm:w-20">พาร์ท ${idx + 1}:</label>
+               <input type="text" class="rename-part-input p-2 border rounded text-sm flex-1 w-full" data-old="${code.replace(/"/g, '&quot;')}" value="${code.replace(/"/g, '&quot;')}" />
+            </div>
+         `).join('');
+      }
     }
+    
     function closeGlobalRename() {
       getEl('detail-header-rename').classList.add('hidden');
       getEl('detail-header-normal').classList.remove('hidden');
     }
     
-    // อัปเดตฟังก์ชันนี้: ยกเลิกการแก้บาร์โค้ดในหน้าต่างนี้ ให้แก้เฉพาะชื่ออย่างเดียว
     async function executeGlobalRename() {
       const nName = getEl('rename-name').value.trim();
       if(!nName) return showAlert("กรุณาระบุชื่อสินค้า", "error");
       
+      const partInputs = document.querySelectorAll('.rename-part-input');
+      const partsMapping = {};
+      partInputs.forEach(input => {
+          const oldP = input.getAttribute('data-old');
+          const newP = input.value.trim();
+          if (oldP || newP) partsMapping[oldP] = newP;
+      });
+      
       getEl('btn-rename-save').innerText="รอ..."; getEl('btn-rename-save').disabled=true;
-      const tId = Date.now(); addToast(tId, "เปลี่ยนชื่อทั้งระบบ", "syncing");
+      const tId = Date.now(); addToast(tId, "เปลี่ยนชื่อ/พาร์ททั้งระบบ", "syncing");
       
       const old = state.detailItem;
-      // ลบ nParts ออก เปลี่ยนเฉพาะชื่อเท่านั้นเพื่อไม่ให้บาร์โค้ดพัง
-      state.transactions = state.transactions.map(t => (t['ชื่อสินค้า']||'').trim()===old ? {...t, 'ชื่อสินค้า':nName} : t);
-      if(state.itemSettings[old]) { state.itemSettings[nName] = state.itemSettings[old]; delete state.itemSettings[old]; }
+      
+      state.transactions = state.transactions.map(t => {
+        if ((t['ชื่อสินค้า']||'').trim() === old) {
+            let updated = {...t, 'ชื่อสินค้า': nName};
+            const oldPart = (t['รหัสอะไหล่']||'').trim();
+            if (partsMapping[oldPart] !== undefined) {
+                updated['รหัสอะไหล่'] = partsMapping[oldPart];
+            }
+            return updated;
+        }
+        return t;
+      });
+      
+      if(state.itemSettings[old]) { 
+          state.itemSettings[nName] = state.itemSettings[old]; 
+          if(old !== nName) delete state.itemSettings[old]; 
+      }
+      
       state.detailItem = nName;
       computeDerivedState();
       openDetail(nName);
 
       try {
-        await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'globalRename', oldName:old, newName:nName})});
-        addToast(tId, "เปลี่ยนชื่อสำเร็จ", "success");
+        await fetchWithTimeout(WEB_APP_URL, {
+            method:'POST', 
+            body:JSON.stringify({action:'globalRename', oldName:old, newName:nName, partsMapping: partsMapping})
+        });
+        addToast(tId, "เปลี่ยนข้อมูลสำเร็จ", "success");
       } catch(e) { addToast(tId, "ล้มเหลว", "error"); }
-      getEl('btn-rename-save').innerText="บันทึกชื่อใหม่"; getEl('btn-rename-save').disabled=false;
+      
+      getEl('btn-rename-save').innerText="บันทึกการเปลี่ยนแปลง"; getEl('btn-rename-save').disabled=false;
     }
 
     function openEdit(rowIndex) {
