@@ -117,8 +117,8 @@
           <div><label class="block text-sm font-medium text-gray-700 mb-1">จำนวนที่เบิก <span class="text-red-500">*</span></label><input type="number" min="0" step="0.01" id="dis-qty" class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none" /></div>
           
           <div class="relative">
-            <label class="block text-sm font-medium text-gray-700 mb-1">เบิกให้รหัสรถ / หน่วยงาน</label>
-            <input type="text" id="dis-vehicle" placeholder="พิมพ์รหัสรถ" class="w-full p-2.5 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500" autocomplete="off" onfocus="showAC('dis-vehicle', state.existingVehicles)" oninput="checkDispatchWarning(); showAC('dis-vehicle', state.existingVehicles)" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">รหัสรถ / หน่วยงาน <span class="text-red-500">*</span></label>
+            <input type="text" id="dis-vehicle" placeholder="พิมพ์รหัสรถ หรือ หน่วยงาน" class="w-full p-2.5 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500" autocomplete="off" onfocus="showAC('dis-vehicle', state.existingVehicles)" oninput="checkDispatchWarning(); showAC('dis-vehicle', state.existingVehicles)" />
             <div id="dis-lifespan-warning" class="mt-2 text-sm text-red-600 bg-red-100 p-2.5 rounded border border-red-200 hidden"></div>
           </div>
         </div>
@@ -137,7 +137,7 @@
         <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100">
-              <tr><th class="px-6 py-3.5 text-left text-xs font-bold text-gray-600 uppercase">ชื่อสินค้า (และรหัสอะไหล่ทั้งหมด)</th><th class="px-6 py-3.5 text-right text-sm font-bold text-blue-800 uppercase w-32">คงเหลือ</th></tr>
+              <tr><th class="px-6 py-3.5 text-left text-xs font-bold text-gray-600 uppercase">ชื่อสินค้า (และรหัสอะไหล่)</th><th class="px-6 py-3.5 text-right text-sm font-bold text-blue-800 uppercase w-32">คงเหลือ</th></tr>
             </thead>
             <tbody id="summary-tbody" class="bg-white divide-y divide-gray-200"></tbody>
           </table>
@@ -169,14 +169,14 @@
         <div class="bg-purple-50 p-4 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
           <div><label class="block text-xs font-bold text-purple-800 mb-1">ประเภท</label><select id="hist-type" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none"><option value="all">ทั้งหมด</option><option value="รับเข้า">รับเข้า</option><option value="เบิกออก">เบิกออก</option></select></div>
           <div><label class="block text-xs font-bold text-purple-800 mb-1">อะไหล่</label><select id="hist-product" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none bg-white"><option value="">-- ทุกรายการ --</option></select></div>
-          <div><label class="block text-xs font-bold text-purple-800 mb-1">รหัสรถ</label><select id="hist-vehicle" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none"><option value="">-- รถทุกคัน --</option></select></div>
+          <div><label class="block text-xs font-bold text-purple-800 mb-1">รหัสรถ/หน่วยงาน</label><select id="hist-vehicle" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none"><option value="">-- ทุกคัน/ทุกหน่วยงาน --</option></select></div>
           <div><label class="block text-xs font-bold text-purple-800 mb-1">ตั้งแต่วันที่</label><input type="date" id="hist-start" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none" /></div>
           <div><label class="block text-xs font-bold text-purple-800 mb-1">ถึงวันที่</label><input type="date" id="hist-end" onchange="renderHistory()" class="w-full p-2 border rounded text-sm outline-none" /></div>
         </div>
         <div class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100">
-              <tr><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">วันที่</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">ประเภท</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">สินค้า</th><th class="px-3 py-3 text-right text-xs font-bold text-gray-600">จำนวน</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">รหัสรถ/ร้าน</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">สถานะ</th><th class="px-3 py-3 text-center text-xs font-bold text-gray-600">จัดการ</th></tr>
+              <tr><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">วันที่</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">ประเภท</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">สินค้า</th><th class="px-3 py-3 text-right text-xs font-bold text-gray-600">จำนวน</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">รหัสรถ/ร้านค้า</th><th class="px-3 py-3 text-left text-xs font-bold text-gray-600">สถานะ</th><th class="px-3 py-3 text-center text-xs font-bold text-gray-600">จัดการ</th></tr>
             </thead>
             <tbody id="history-tbody" class="bg-white divide-y divide-gray-100"></tbody>
           </table>
@@ -190,7 +190,7 @@
           <div class="overflow-x-auto border border-orange-200 rounded-lg shadow-sm">
             <table class="min-w-full divide-y divide-orange-200">
               <thead class="bg-orange-50">
-                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่(หลัก)</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">รหัสอะไหล่</th><th class="px-4 py-3 text-left text-xs font-bold text-orange-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-orange-800">จุดแจ้งเตือน (ชิ้น)</th><th class="px-4 py-3 text-right text-xs font-bold text-orange-800">คงเหลือ</th></tr>
               </thead>
               <tbody id="alerts-lowstock-tbody" class="bg-white divide-y divide-gray-100"></tbody>
             </table>
@@ -201,7 +201,7 @@
           <div class="overflow-x-auto border border-red-200 rounded-lg shadow-sm">
             <table class="min-w-full divide-y divide-red-200">
               <thead class="bg-red-50">
-                <tr><th class="px-4 py-3 text-left text-xs font-bold text-red-800">วันที่เบิก</th><th class="px-4 py-3 text-left text-xs font-bold text-red-800">รหัสรถ</th><th class="px-4 py-3 text-left text-xs font-bold text-red-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-red-800">รายละเอียด</th><th class="px-4 py-3 text-right text-xs font-bold text-red-800">จัดการ</th></tr>
+                <tr><th class="px-4 py-3 text-left text-xs font-bold text-red-800">วันที่เบิก</th><th class="px-4 py-3 text-left text-xs font-bold text-red-800">รหัสรถ/หน่วยงาน</th><th class="px-4 py-3 text-left text-xs font-bold text-red-800">ชื่อสินค้า</th><th class="px-4 py-3 text-center text-xs font-bold text-red-800">รายละเอียด</th><th class="px-4 py-3 text-right text-xs font-bold text-red-800">จัดการ</th></tr>
               </thead>
               <tbody id="alerts-dispatch-tbody" class="bg-white divide-y divide-gray-100"></tbody>
             </table>
@@ -252,10 +252,11 @@
         </div>
         <div class="w-full pr-8 hidden" id="detail-header-rename">
           <div class="bg-blue-50 p-3 rounded border border-blue-200 mb-2">
-            <p class="text-xs font-bold text-blue-800 mb-2">เปลี่ยนชื่อสินค้า (มีผลกับประวัติที่ผ่านมาทั้งหมด)</p>
+            <p class="text-xs font-bold text-blue-800 mb-2">เปลี่ยนชื่อสินค้าและรหัสอะไหล่ (มีผลกับประวัติที่ผ่านมาทั้งหมด)</p>
             <div class="flex flex-col sm:flex-row gap-2">
               <input type="text" id="rename-name" placeholder="ชื่อสินค้า" class="p-2 border rounded text-sm flex-1" />
-              <button id="btn-rename-save" onclick="executeGlobalRename()" class="text-white px-3 py-2 rounded text-sm font-bold bg-blue-600 hover:bg-blue-700">บันทึกชื่อใหม่</button>
+              <input type="text" id="rename-parts" placeholder="รหัสอะไหล่" class="p-2 border rounded text-sm w-full sm:w-1/3" />
+              <button id="btn-rename-save" onclick="executeGlobalRename()" class="text-white px-3 py-2 rounded text-sm font-bold bg-blue-600 hover:bg-blue-700">บันทึก</button>
               <button onclick="closeGlobalRename()" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 rounded text-sm">ยกเลิก</button>
             </div>
           </div>
@@ -264,12 +265,11 @@
         <button onclick="closeModal('modal-detail')" class="text-gray-400 hover:text-red-500 ml-4 text-xl">❌</button>
       </div>
 
-      <div class="p-4 border-b bg-yellow-50 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+      <div class="p-4 border-b bg-yellow-50 grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
         <div class="w-full"><label class="block text-sm font-bold text-yellow-800 mb-1">ตั้งอายุ (เดือน)</label><input type="number" id="detail-lifespan" class="w-full p-2 border border-yellow-300 rounded outline-none focus:ring-2 focus:ring-yellow-500" /></div>
         <div class="w-full"><label class="block text-sm font-bold text-orange-800 mb-1">เตือนเมื่อน้อยกว่า (ชิ้น)</label><input type="number" id="detail-minstock" class="w-full p-2 border border-orange-300 rounded outline-none focus:ring-2 focus:ring-orange-500" /></div>
-        <div class="w-full"><label class="block text-sm font-bold text-blue-800 mb-1">บาร์โค้ดเสริม (คั่นด้วย ,)</label><input type="text" id="detail-barcodes" placeholder="1010, 2020" class="w-full p-2 border border-blue-300 rounded outline-none focus:ring-2 focus:ring-blue-500" /></div>
-        <div class="col-span-1 sm:col-span-3 text-right">
-            <button id="btn-save-settings" onclick="saveSettings()" class="w-full sm:w-auto text-white font-bold py-2 px-6 rounded transition-colors bg-yellow-600 hover:bg-yellow-700 mt-2">บันทึกตั้งค่า & บาร์โค้ด</button>
+        <div class="col-span-1 sm:col-span-2 text-right">
+            <button id="btn-save-settings" onclick="saveSettings()" class="w-full sm:w-auto text-white font-bold py-2 px-6 rounded transition-colors bg-yellow-600 hover:bg-yellow-700 mt-2">บันทึกตั้งค่า</button>
         </div>
       </div>
       
@@ -279,7 +279,7 @@
       </div>
       <div class="p-0 overflow-y-auto">
         <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-white sticky top-0 shadow-sm"><tr><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">วันที่</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">ประเภท</th><th class="px-4 py-3 text-right text-xs font-bold text-gray-500">จำนวน</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">รถ/ร้าน</th><th class="px-4 py-3 text-center text-xs font-bold text-gray-500">จัดการ</th></tr></thead>
+          <thead class="bg-white sticky top-0 shadow-sm"><tr><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">วันที่</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">ประเภท</th><th class="px-4 py-3 text-right text-xs font-bold text-gray-500">จำนวน</th><th class="px-4 py-3 text-left text-xs font-bold text-gray-500">รถ/หน่วยงาน/ร้าน</th><th class="px-4 py-3 text-center text-xs font-bold text-gray-500">จัดการ</th></tr></thead>
           <tbody id="detail-tbody" class="bg-white divide-y divide-gray-100"></tbody>
         </table>
       </div>
@@ -344,7 +344,6 @@
     let state = {
       transactions: [], vehicles: [], itemSettings: {}, inventory: {},
       existingProducts: [], existingPartsCodes: [], existingShops: [], existingVehicles: [],
-      barcodeMap: {}, // แผนที่เชื่อม บาร์โค้ด -> ชื่อสินค้า
       activeTab: 'receive',
       isOnline: navigator.onLine,
       syncTasks: [],
@@ -401,9 +400,9 @@
       window.addEventListener('online', () => { state.isOnline = true; renderNetwork(); });
       window.addEventListener('offline', () => { state.isOnline = false; renderNetwork(); });
 
-      const cachedTrans = localStorage.getItem('cachedTransactions_v4');
-      const cachedVehicles = localStorage.getItem('cachedVehicles_v4');
-      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v4');
+      const cachedTrans = localStorage.getItem('cachedTransactions_v5');
+      const cachedVehicles = localStorage.getItem('cachedVehicles_v5');
+      const cachedItemSettings = localStorage.getItem('cachedItemSettings_v5');
       
       if (cachedTrans && cachedVehicles) {
         state.transactions = JSON.parse(cachedTrans);
@@ -432,15 +431,14 @@
           if (row['ชื่อสินค้า']) {
             state.itemSettings[row['ชื่อสินค้า'].trim()] = {
               lifespan: row['อายุการใช้งาน'] || '',
-              minStock: row['แจ้งเตือนขั้นต่ำ'] || '',
-              barcodes: row['บาร์โค้ดทั้งหมด'] || '' // โหลดบาร์โค้ดเสริม
+              minStock: row['แจ้งเตือนขั้นต่ำ'] || ''
             };
           }
         });
 
-        localStorage.setItem('cachedVehicles_v4', JSON.stringify(state.vehicles));
-        localStorage.setItem('cachedTransactions_v4', JSON.stringify(state.transactions));
-        localStorage.setItem('cachedItemSettings_v4', JSON.stringify(state.itemSettings));
+        localStorage.setItem('cachedVehicles_v5', JSON.stringify(state.vehicles));
+        localStorage.setItem('cachedTransactions_v5', JSON.stringify(state.transactions));
+        localStorage.setItem('cachedItemSettings_v5', JSON.stringify(state.itemSettings));
 
       } catch (e) { console.error("Fetch error", e); } 
       finally {
@@ -454,7 +452,6 @@
 
     function computeDerivedState() {
       state.inventory = {};
-      state.barcodeMap = {};
       const sortedTrans = [...state.transactions].sort((a, b) => new Date(a['วันที่']) - new Date(b['วันที่']));
       
       sortedTrans.forEach(curr => {
@@ -464,12 +461,11 @@
         const parts = (curr['รหัสอะไหล่'] || '').trim();
 
         if (!product) return;
-        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCodes: new Set(), mainPart: '' };
+        if (!state.inventory[product]) state.inventory[product] = { in: 0, out: 0, balance: 0, partsCode: '' };
         
-        // จำบาร์โค้ดทุกอันที่เคยมีในประวัติ
-        if (parts !== '') {
-           state.inventory[product].partsCodes.add(parts);
-           state.inventory[product].mainPart = parts; // โชว์อันล่าสุดเป็นหลัก
+        // ใช้อันล่าสุดเป็นพาร์ทหลัก
+        if (type === 'รับเข้า' && parts !== '') {
+           state.inventory[product].partsCode = parts;
         }
 
         if (type === 'รับเข้า') {
@@ -482,19 +478,7 @@
       });
 
       state.existingProducts = Object.keys(state.inventory).sort();
-      
-      // เอาบาร์โค้ดเสริมจาก Settings มารวมด้วย
-      state.existingProducts.forEach(p => {
-         const savedBC = (state.itemSettings[p]?.barcodes || '').split(',').map(s=>s.trim()).filter(Boolean);
-         savedBC.forEach(b => state.inventory[p].partsCodes.add(b));
-         
-         // สร้างตัวเชื่อม บาร์โค้ด -> ชื่อสินค้า
-         state.inventory[p].partsCodes.forEach(code => {
-             state.barcodeMap[code.toLowerCase()] = p;
-         });
-      });
-
-      state.existingPartsCodes = Object.keys(state.barcodeMap).sort();
+      state.existingPartsCodes = [...new Set(state.transactions.map(t => (t['รหัสอะไหล่'] || '').trim()).filter(Boolean))].sort();
       state.existingShops = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'รับเข้า' && t['ชื่อร้านค้า']).map(t => t['ชื่อร้านค้า']))].filter(Boolean);
       state.existingVehicles = [...new Set(state.transactions.filter(t => t['ประเภทรายการ'] === 'เบิกออก' && t['รหัสรถ']).map(t => t['รหัสรถ']))].filter(Boolean);
 
@@ -536,7 +520,7 @@
         const minStr = state.itemSettings[product]?.minStock;
         if (minStr && minStr.trim() !== '') {
           const th = parseFloat(minStr);
-          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].mainPart, balance, threshold: th });
+          if (!isNaN(th) && balance <= th) state.lowStockAlerts.push({ product, partsCode: state.inventory[product].partsCode, balance, threshold: th });
         }
       });
       state.lowStockAlerts.sort((a, b) => a.balance - b.balance);
@@ -545,7 +529,7 @@
       renderAllTables();
     }
 
-    // --- Custom Autocomplete (แก้ปัญหามือถือ) ---
+    // --- Custom Autocomplete ---
     window.showAC = function(inputId, optionsList) {
       const input = getEl(inputId);
       const val = input.value.toLowerCase().trim();
@@ -588,7 +572,7 @@
     function updateSelectOptions() {
       getEl('shops-select').innerHTML = '<option value="">-- เลือกร้านค้า --</option>' + state.existingShops.map(s => `<option value="${s}">${s}</option>`).join('');
       getEl('hist-product').innerHTML = '<option value="">-- ทุกรายการ --</option>' + state.existingProducts.map(p => `<option value="${p}">${p}</option>`).join('');
-      getEl('hist-vehicle').innerHTML = '<option value="">-- รถทุกคัน --</option>' + state.existingVehicles.map(v => `<option value="${v}">${v}</option>`).join('');
+      getEl('hist-vehicle').innerHTML = '<option value="">-- ทุกคัน/ทุกหน่วยงาน --</option>' + state.existingVehicles.map(v => `<option value="${v}">${v}</option>`).join('');
     }
 
     function renderNetwork() {
@@ -623,7 +607,9 @@
     function handlePartsChange(prefix) {
       const code = getEl(`${prefix}-parts`).value.trim();
       if(code !== '') {
-        const matchedProduct = state.barcodeMap[code.toLowerCase()];
+        const matchedProduct = Object.keys(state.inventory).find(p => 
+          (state.inventory[p].partsCode || '').toLowerCase() === code.toLowerCase()
+        );
         if(matchedProduct) {
           getEl(`${prefix}-product`).value = matchedProduct;
           if(prefix === 'dis') checkDispatchWarning();
@@ -633,12 +619,8 @@
 
     function handleProductChange(prefix) {
       const name = getEl(`${prefix}-product`).value.trim();
-      if(state.inventory[name] && state.inventory[name].mainPart) {
-        // อัปเดตช่องพาร์ทเฉพาะเมื่อช่องพาร์ทว่าง หรือไม่ได้ตรงกับสินค้านี้อยู่
-        const currentPart = getEl(`${prefix}-parts`).value.trim();
-        if(!currentPart || state.barcodeMap[currentPart.toLowerCase()] !== name) {
-            getEl(`${prefix}-parts`).value = state.inventory[name].mainPart;
-        }
+      if(state.inventory[name] && state.inventory[name].partsCode) {
+        getEl(`${prefix}-parts`).value = state.inventory[name].partsCode;
       } else if (name === '') {
         getEl(`${prefix}-parts`).value = '';
       }
@@ -722,17 +704,19 @@
       if(btn.disabled) return;
 
       if(type==='dispatch') {
+        const veh = getEl('dis-vehicle').value.trim();
+        if(!veh) return showAlert("กรุณาระบุ รหัสรถ/หน่วยงาน ให้ครบถ้วน", 'error'); // บังคับกรอก
+
         const bal = state.inventory[prod]?.balance || 0;
         if(parseFloat(qtyStr) > bal) return showAlert(`ไม่อนุญาตให้เบิก!\nจำนวนต้องการเบิก (${qtyStr}) มีมากกว่าคงเหลือ (${bal})`, 'error');
         
-        const veh = getEl('dis-vehicle').value.trim();
         const tarL = state.itemSettings[prod]?.lifespan;
         if(veh && tarL) {
           const past = state.transactions.filter(t => t['ประเภทรายการ']==='เบิกออก' && (t['ชื่อสินค้า']||'').trim()===prod && (t['รหัสรถ']===veh || t['รหัสรถที่เบิก']===veh)).sort((a,b)=>new Date(b['วันที่']) - new Date(a['วันที่']));
           if(past.length > 0) {
              const ms = ((new Date(date) - new Date(past[0]['วันที่']))/86400000)/30.44;
              if(ms < parseFloat(tarL)) {
-                return showConfirm(`⚠️ แจ้งเตือนก่อนเบิก!\nรถรหัส ${veh} เพิ่งเบิก "${prod}" ไปเมื่อ ${past[0]['วันที่']}\nซึ่งยังไม่ครบกำหนด (${tarL} เดือน)\nแน่ใจหรือไม่ที่จะเบิกซ้ำ?`, () => doSubmit(type, true));
+                return showConfirm(`⚠️ แจ้งเตือนก่อนเบิก!\nรหัสรถ/หน่วยงาน ${veh} เพิ่งเบิก "${prod}" ไปเมื่อ ${past[0]['วันที่']}\nซึ่งยังไม่ครบกำหนด (${tarL} เดือน)\nแน่ใจหรือไม่ที่จะเบิกซ้ำ?`, () => doSubmit(type, true));
              }
           }
         }
@@ -747,7 +731,7 @@
       
       let prod = getEl(`${pre}-product`).value.trim();
       let parts = getEl(`${pre}-parts`).value.trim();
-      if(type==='dispatch' && !parts && state.inventory[prod]?.mainPart) parts = state.inventory[prod].mainPart;
+      if(type==='dispatch' && !parts && state.inventory[prod]?.partsCode) parts = state.inventory[prod].partsCode;
 
       const maxId = state.transactions.length > 0 ? Math.max(...state.transactions.map(t=>t._rowIndex||0)) : 1;
       const newTx = {
@@ -789,17 +773,12 @@
       const count = state.alertData.length + state.lowStockAlerts.length;
       if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; } else badge.classList.add('hidden');
       
-      localStorage.setItem('cachedTransactions_v4', JSON.stringify(state.transactions));
+      localStorage.setItem('cachedTransactions_v5', JSON.stringify(state.transactions));
     }
 
     function renderSummary() {
       const src = getEl('summary-search').value.toLowerCase();
-      // ค้นหาทั้งชื่อ และ บาร์โค้ดทุกอันของสินค้านั้น
-      const arr = state.existingProducts.filter(p => {
-         if(p.toLowerCase().includes(src)) return true;
-         const codes = Array.from(state.inventory[p].partsCodes);
-         return codes.some(c => c.toLowerCase().includes(src));
-      });
+      const arr = state.existingProducts.filter(p => p.toLowerCase().includes(src) || (state.inventory[p].partsCode||'').toLowerCase().includes(src));
       
       const tb = getEl('summary-tbody');
       if(arr.length===0) return tb.innerHTML = `<tr><td colspan="2" class="px-6 py-8 text-center text-gray-500">ไม่พบสินค้าที่ค้นหา</td></tr>`;
@@ -808,8 +787,6 @@
         const inv = state.inventory[p];
         const set = state.itemSettings[p] || {};
         const low = inv.balance <= (parseFloat(set.minStock)||0) && set.minStock ? 'text-red-600' : 'text-blue-700';
-        // โชว์บาร์โค้ดทั้งหมดที่มีให้เห็นคร่าวๆ
-        const allCodes = Array.from(inv.partsCodes).join(', ');
         
         return `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="openDetail('${p.replace(/'/g, "\\'")}')">
           <td class="px-6 py-4 text-sm font-semibold text-gray-900">
@@ -817,7 +794,7 @@
               ${set.lifespan ? `<span class="text-xs font-normal bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full whitespace-nowrap">อายุ: ${set.lifespan} ด.</span>`:''}
               ${set.minStock ? `<span class="text-xs font-normal bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full whitespace-nowrap">&le; ${set.minStock}</span>`:''}
             </div>
-            ${allCodes ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${allCodes}</div>`:''}
+            ${inv.partsCode ? `<div class="text-xs text-gray-500 mt-1 font-normal break-all">พาร์ท: ${inv.partsCode}</div>`:''}
           </td>
           <td class="px-6 py-4 text-sm text-right font-bold bg-blue-50/30 ${low}">${inv.balance}</td>
         </tr>`;
@@ -882,7 +859,6 @@
       getEl('detail-balance-2').innerText = `คงเหลือ: ${state.inventory[productName].balance}`;
       getEl('detail-lifespan').value = state.itemSettings[productName]?.lifespan || '';
       getEl('detail-minstock').value = state.itemSettings[productName]?.minStock || '';
-      getEl('detail-barcodes').value = state.itemSettings[productName]?.barcodes || ''; // ดึงบาร์โค้ดเสริมมาโชว์
       getEl('detail-filter').value = 'all';
       closeGlobalRename();
       renderDetailTable();
@@ -898,27 +874,25 @@
     async function saveSettings() {
       const ls = getEl('detail-lifespan').value;
       const ms = getEl('detail-minstock').value;
-      const bc = getEl('detail-barcodes').value; // บาร์โค้ดเสริม
       const btn = getEl('btn-save-settings');
       btn.innerText="รอ..."; btn.disabled=true;
       
-      state.itemSettings[state.detailItem] = {lifespan: ls, minStock: ms, barcodes: bc};
-      computeDerivedState(); // สั่งคำนวณใหม่เพื่อให้ระบบรับรู้บาร์โค้ดทันที
+      state.itemSettings[state.detailItem] = {lifespan: ls, minStock: ms};
+      computeDerivedState(); 
       
       const tId = Date.now(); addToast(tId, "กำลังบันทึกตั้งค่า", "syncing");
       try {
-        await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'saveLifespan', 'ชื่อสินค้า':state.detailItem, 'อายุการใช้งาน':ls, 'แจ้งเตือนขั้นต่ำ':ms, 'บาร์โค้ดทั้งหมด': bc})});
+        await fetchWithTimeout(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'saveLifespan', 'ชื่อสินค้า':state.detailItem, 'อายุการใช้งาน':ls, 'แจ้งเตือนขั้นต่ำ':ms})});
         addToast(tId, "บันทึกตั้งค่าสำเร็จ", "success");
       } catch(e) { addToast(tId, "ล้มเหลว", "error"); }
-      btn.innerText="บันทึกตั้งค่า & บาร์โค้ด"; btn.disabled=false;
+      btn.innerText="บันทึกตั้งค่า"; btn.disabled=false;
     }
 
     function openGlobalRename() {
       getEl('detail-header-normal').classList.add('hidden');
       getEl('detail-header-rename').classList.remove('hidden');
       getEl('rename-name').value = state.detailItem;
-      // ให้มันโชว์อันหลักตอนจะแก้ชื่อ
-      getEl('rename-parts').value = state.inventory[state.detailItem]?.mainPart || '';
+      getEl('rename-parts').value = state.inventory[state.detailItem]?.partsCode || '';
     }
     function closeGlobalRename() {
       getEl('detail-header-rename').classList.add('hidden');
@@ -962,7 +936,7 @@
       } else {
         getEl('edit-wrap-parts').innerHTML = `<label class="block text-xs font-bold text-gray-400 mb-1">รหัสอะไหล่ (ล็อก)</label><input type="text" value="${tx['รหัสอะไหล่']||''}" disabled class="w-full p-2 border rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed"/>`;
         getEl('edit-wrap-product').innerHTML = `<label class="block text-xs font-bold text-gray-400 mb-1">ชื่อสินค้า (ล็อก)</label><input type="text" value="${tx['ชื่อสินค้า']}" disabled class="w-full p-2 border rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed"/>`;
-        getEl('edit-wrap-extra').innerHTML = `<div class="col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">รหัสรถ</label><input type="text" id="edit-veh" value="${tx['รหัสรถ']||''}" class="w-full p-2 border rounded text-sm"/></div>`;
+        getEl('edit-wrap-extra').innerHTML = `<div class="col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">รหัสรถ/หน่วยงาน</label><input type="text" id="edit-veh" value="${tx['รหัสรถ']||''}" class="w-full p-2 border rounded text-sm"/></div>`;
       }
       openModal('modal-edit');
     }
@@ -1011,7 +985,7 @@
       const c = getEl('alert-detail-content');
       if(pTx) {
         const diff = ((new Date(tx['วันที่']) - new Date(pTx['วันที่']))/86400000/30.44).toFixed(1);
-        c.innerHTML = `<p>รถ: <b>${tx['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${diff} เดือน (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
+        c.innerHTML = `<p>รหัสรถ/หน่วยงาน: <b>${tx['รหัสรถ']}</b></p><p>เบิกก่อนหน้า: ${pTx['วันที่']}</p><p>เบิกครั้งนี้: ${tx['วันที่']}</p><p class="text-red-500 font-bold">ผ่านไปเพียง ${diff} เดือน (เป้าหมาย ${state.itemSettings[tx['ชื่อสินค้า'].trim()]?.lifespan} ด.)</p>`;
       } else c.innerHTML = "<p>ไม่พบประวัติอ้างอิง</p>";
       openModal('modal-alert-detail');
     }
